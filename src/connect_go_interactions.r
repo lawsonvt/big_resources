@@ -69,4 +69,4 @@ go_results$confidence <- ifelse(go_results$EVIDENCE %in%
                                 "high",
                                 "low")
 
-
+cat(unique(go_results$uniprotswissprot), sep=" ")
