@@ -69,4 +69,22 @@ go_results$confidence <- ifelse(go_results$EVIDENCE %in%
                                 "high",
                                 "low")
 
-cat(unique(go_results$uniprotswissprot), sep=" ")
+intact_results <- read.delim("data/stat4_intact_human.tsv")
+# convert IDs
+intact_results$id1 <- sapply(intact_results$X..ID.s..interactor.A, function(x) {
+  unlist(strsplit(x, ":",))[2]
+})
+intact_results$id2 <- sapply(intact_results$ID.s..interactor.B, function(x) {
+  unlist(strsplit(x, ":",))[2]
+})
+
+total_ids <- unique(c(intact_results$id1,
+                      intact_results$id2))
+
+# connected to Stat4
+go_results_connect <- go_results[go_results$uniprotswissprot %in%
+                                   total_ids,]
+
+intact_results[intact_results$id1 == "P31749",]
+
+
