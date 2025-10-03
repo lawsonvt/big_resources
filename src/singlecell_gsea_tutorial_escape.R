@@ -133,8 +133,90 @@ pbmc_small <- runEscape(pbmc_small,
                         min.size = 5,
                         new.assay.name = "hallmark_GSVA")
 
+# ok, the genes have been transformed to genesets, now what?
 
+# we normalize!
+pbmc_small <- performNormalization(sc.data=pbmc_small,
+                                   assay="hallmark_ssGSEA",
+                                   gene.sets = gs_hallmark)
+# creates a new assay called 'hallmark_ssGSEA_normalized'
 
+pbmc_small@assays$hallmark_ssGSEA_normalized$data[1:5,1:5]
+
+# can also normalize based on the pre-calculated scaling factor
+pbmc_small <- performNormalization(sc.data=pbmc_small,
+                                   assay="hallmark_ssGSEA",
+                                   gene.sets = gs_hallmark,
+                                   scale.factor = pbmc_small$nFeature_RNA)
+
+pbmc_small@assays$hallmark_ssGSEA_normalized$data[1:5,1:5]
+
+# in addition, we can make the values positive for better log2FC
+pbmc_small <- performNormalization(sc.data=pbmc_small,
+                                   assay="hallmark_ssGSEA",
+                                   gene.sets = gs_hallmark,
+                                   make.positive = T)
+
+pbmc_small@assays$hallmark_ssGSEA_normalized$data[1:5,1:5]
+
+# Visualizations
+heatmapEnrichment(pbmc_small, 
+                  group.by = "RNA_snn_res.1", # metadata field
+                  gene.set.use = "all",
+                  assay = "hallmark_ssGSEA")
+
+# add clustering (but no dendograms)
+heatmapEnrichment(pbmc_small, 
+                  group.by = "RNA_snn_res.1", # metadata field
+                  gene.set.use = "all",
+                  assay = "hallmark_ssGSEA",
+                  cluster.rows = T,
+                  cluster.columns = T)
+
+# can use other palettes
+hcl.pals()
+heatmapEnrichment(pbmc_small,
+                  assay="hallmark_ssGSEA",
+                  palette="Spectral")
+
+# alternatively, since the heatmap is a ggplot object, can alter with ggplot functions
+heatmapEnrichment(pbmc_small,
+                  assay="hallmark_ssGSEA") +
+  scale_fill_gradientn(colors = rev(brewer.pal(11, "RdYlBu"))) 
+
+# geyser plots
+geyserEnrichment(pbmc_small, 
+                 assay = "hallmark_ssGSEA",
+                 gene.set = "HALLMARK-INTERFERON-GAMMA-RESPONSE")
+
+# order by the mean value
+geyserEnrichment(pbmc_small, 
+                 assay = "hallmark_ssGSEA",
+                 gene.set = "HALLMARK-INTERFERON-GAMMA-RESPONSE",
+                 order.by = "mean")
+# use facets
+geyserEnrichment(pbmc_small, 
+                 assay = "hallmark_ssGSEA",
+                 gene.set = "HALLMARK-INTERFERON-GAMMA-RESPONSE", 
+                 facet.by = "groups")
+
+# color by y instead of x
+geyserEnrichment(pbmc_small, 
+                 assay = "hallmark_ssGSEA",
+                 gene.set = "HALLMARK-INTERFERON-GAMMA-RESPONSE",
+                 color.by = "HALLMARK-INTERFERON-GAMMA-RESPONSE")
+
+# ridge plots!
+ridgeEnrichment(pbmc_small, 
+                assay = "hallmark_ssGSEA",
+                gene.set = "HALLMARK-IL2-STAT5-SIGNALING")
+
+# scale values and add locations of cells along x-axis (rug)
+ridgeEnrichment(pbmc_small, 
+                assay = "hallmark_ssGSEA",
+                gene.set = "HALLMARK-IL2-STAT5-SIGNALING",
+                add.rug = TRUE,
+                scale = TRUE)
 
 
 
