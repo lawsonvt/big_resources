@@ -30,11 +30,11 @@ gs_c2 <- getGeneSets(library="C2",
                                      "CP:WikiPathways"),
                      species="Homo sapiens")
 
-# gs_go <- getGeneSets(library="C5",
-#                      subcategory = c("GO:BP",
-#                                      "GO:MF",
-#                                      "GO:CC"),
-#                      species = "Homo sapiens")
+gs_go <- getGeneSets(library="C5",
+                      subcategory = c("GO:BP",
+                                      "GO:MF",
+                                      "GO:CC"),
+                      species = "Homo sapiens")
 
 # built in gene sets
 data("escape.gene.sets", package="escape")
@@ -74,6 +74,16 @@ enrichment_scores <- escape.matrix(pbmc_small,
                                    groups = 1000, 
                                    min.size = 5,
                                    BPPARAM = SnowParam(workers = 2))
+
+# do this with GO terms!
+go_enrichment_scores <- escape.matrix(pbmc_small, 
+                                      method = "ssGSEA",
+                                      gene.sets = gs_go, 
+                                      groups = 1000, 
+                                      min.size = 5,
+                                      BPPARAM = SnowParam(workers = 4))
+
+dim(go_enrichment_scores)
 
 # 2. runEscape performs the same calculation and attaches it to the Seurat object
 # (it can also be run in parallel)
@@ -219,5 +229,71 @@ ridgeEnrichment(pbmc_small,
                 scale = TRUE)
 
 
+# split enrichments
 
+splitEnrichment(pbmc_small, 
+                assay = "hallmark_ssGSEA",
+                gene.set = "HALLMARK-IL2-STAT5-SIGNALING", 
+                split.by = "groups")
+
+# density enrichment gives a visualization that corresponds to GSEA calculation
+densityEnrichment(pbmc_small, 
+                  gene.set.use = "HALLMARK-IL6-JAK-STAT3-SIGNALING", 
+                  gene.sets = gs_hallmark)
+
+# scatter enrichment to compare multiple genesets
+scatterEnrichment(pbmc_small, 
+                  assay = "hallmark_ssGSEA",
+                  x.axis = "HALLMARK-INTERFERON-GAMMA-RESPONSE",
+                  y.axis = "HALLMARK-IL6-JAK-STAT3-SIGNALING")
+
+# can also be a hex
+scatterEnrichment(pbmc_small, 
+                  assay = "hallmark_ssGSEA",
+                  x.axis = "HALLMARK-INTERFERON-GAMMA-RESPONSE",
+                  y.axis = "HALLMARK-IL6-JAK-STAT3-SIGNALING", 
+                  style = "hex")
+
+# Statistical analysis
+
+# PCA
+pbmc_small <- performPCA(pbmc_small, 
+                         assay = "hallmark_ssGSEA",
+                         n.dim = 1:10)
+# adds "escape.PCA" to dimensional reductions
+
+pcaEnrichment(pbmc_small, 
+              dimRed = "escape.PCA",
+              x.axis = "PC1",
+              y.axis = "PC2")
+
+pcaEnrichment(pbmc_small, 
+              dimRed = "escape.PCA",
+              x.axis = "PC1",
+              y.axis = "PC2",
+              add.percent.contribution = TRUE,
+              display.factors = TRUE,
+              number.of.factors = 10)
+
+# pull things out to make PCA plot
+pca_vals <- as.data.frame(pbmc_small@reductions$escape.PCA@cell.embeddings)
+
+pca_vals$groups <- pbmc_small$RNA_snn_res.1
+
+ggplot(pca_vals, aes(x=PCA_1, y=PCA_2, color=groups)) +
+  geom_point() + theme_bw()
+
+# Differential expression
+
+# ensure that values are normalized AND positive
+pbmc_small <- performNormalization(pbmc_small, 
+                                   assay = "hallmark_ssGSEA", 
+                                   gene.sets = gs_hallmark,
+                                   make.positive = TRUE)
+
+all_markers <- FindAllMarkers(pbmc_small, 
+                              assay = "hallmark_ssGSEA_normalized", 
+                              min.pct = 0,
+                              logfc.threshold = 0)
+# could do this for specific groups as well ...
 
