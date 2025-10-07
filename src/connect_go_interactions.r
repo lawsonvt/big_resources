@@ -5,6 +5,11 @@ library(GO.db)
 library(httr)
 library(jsonlite)
 library(biomaRt)
+library(ontologyPlot)
+
+out_dir <- "results/go_connections/"
+dir.create(out_dir, showWarnings = F, recursive = T)
+
 
 root_go_ids <- c("GO:0042552", # myelination
                  "GO:0031641", # regulation of myelination
@@ -22,7 +27,13 @@ go_children <- get_descendants(go, root_go_ids)
 go_xref <- data.frame(go_id=go_children,
                       go_term=go$name[go_children])
 
-# Connect to Ensembl
+# plot out ontology
+pdf(paste0(out_dir, "myelination_go_terms.pdf"), 
+    width=7, height=6)
+onto_plot(go, go_children, fontsize = 20)
+dev.off()
+
+# pull from GO annotiations
 results <- AnnotationDbi::select(
   org.Hs.eg.db,
   keys = go_xref$go_id,
@@ -35,6 +46,7 @@ go_results <- merge(go_xref,
                     by.x="go_id",
                     by.y="GO")
 
+# get uniprot IDs from ensembl
 mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
 swissprot_ids <- getBM(
@@ -49,7 +61,8 @@ swissprot_ids <- swissprot_ids[swissprot_ids$uniprotswissprot != "",]
 go_results <- merge(go_results,
                     swissprot_ids,
                     by.x="SYMBOL",
-                    by.y="hgnc_symbol")
+                    by.y="hgnc_symbol",
+                    all.x=T)
 
 # Common Evidence Codes
 # 
@@ -64,11 +77,13 @@ go_results <- merge(go_results,
 # NAS: Non-traceable Author Statement
 # IEA: Inferred from Electronic Annotation (computationally assigned)
 
+# rank confidence
 go_results$confidence <- ifelse(go_results$EVIDENCE %in% 
                                   c("EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "TAS", "IC"),
                                 "high",
                                 "low")
 
+# connect to some intact results
 intact_results <- read.delim("data/stat4_intact_human.tsv")
 # convert IDs
 intact_results$id1 <- sapply(intact_results$X..ID.s..interactor.A, function(x) {
@@ -87,4 +102,16 @@ go_results_connect <- go_results[go_results$uniprotswissprot %in%
 
 intact_results[intact_results$id1 == "P31749",]
 
+# output GO results
+head(go_results)
+
+col_order <- c("go_id","go_term","ONTOLOGY","EVIDENCE","confidence",
+               "SYMBOL","GENENAME", "ENTREZID", "uniprotswissprot")
+
+go_results <- go_results[,col_order]
+
+go_results <- go_results[order(go_results$go_id),]
+
+write.xlsx(go_results, file=paste0(out_dir, "myelin_go_terms2genes.xlsx"),
+           colWidths="auto")
 
