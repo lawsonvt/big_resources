@@ -1,0 +1,41 @@
+Prompt to Claude: Is the preferred form of determining pathway enrichment in single cells to use a method like GSVA to create pathway level scores and use them for further analysis?
+
+Response:
+Yes, that's generally becoming the **preferred approach** in the single-cell field, though with some important nuances:
+
+## Why Pathway Scoring Methods Are Favored
+
+**Single-cell adapted scoring methods** (like GSVA, AUCell, UCell, or Escape) are preferred because they:
+
+1. **Preserve single-cell resolution** - You get pathway activity scores for each individual cell, maintaining the granularity of your data
+
+2. **Enable flexible downstream analyses** - Once you have pathway scores, you can:
+   - Visualize pathway activity on UMAPs
+   - Compare across cell types or conditions
+   - Correlate with continuous variables (pseudotime, gene expression)
+   - Identify cells with high/low pathway activity
+
+3. **Avoid pseudoreplication issues** - These methods score cells individually rather than treating cells as independent replicates for statistical testing
+
+4. **Better suited for heterogeneous populations** - Can capture cell-to-cell variation in pathway activity within the same cluster
+
+## Important Considerations
+
+However, there are caveats:
+
+**For statistical testing between conditions:** If you have biological replicates, pseudobulk + traditional GSEA is often **more statistically rigorous** for differential pathway analysis. The pathway scoring approach can miss this proper accounting of biological variability.
+
+**The compromise approach many use:**
+- Use scoring methods (GSVA/AUCell/etc.) for **exploration and visualization**
+- Use pseudobulk + GSEA for **formal statistical testing** of pathway differences between conditions
+
+**Sparsity matters:** Single-cell data is very sparse. Methods like **UCell** and **AUCell** are specifically designed to handle this better than vanilla GSVA, which was developed for bulk data.
+
+## Current Best Practice
+
+For most single-cell pathway analyses, researchers now:
+1. Use single-cell optimized scoring (UCell or AUCell are popular)
+2. Visualize and explore at single-cell resolution
+3. If testing for differential pathway activity between conditions with replicates, validate with pseudobulk approaches
+
+So yes, pathway scoring is preferred for *exploration*, but should be complemented with proper statistical testing for *inference*.
