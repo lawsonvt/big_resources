@@ -54,6 +54,7 @@ markers <- FindMarkers(
 )
 markers$gene_name <- rownames(markers)
 
+# find minimum non-zero p-value
 min_nz_pval <- min(markers$p_val[markers$p_val >0])
 
 # create "stat" value for ranking
@@ -160,7 +161,6 @@ fgsea_results <- fgsea(
 topPathways <- fgsea_results %>%
   filter(padj < 0.05) %>%
   arrange(desc(abs(NES))) %>%
-  head(20) %>%
   pull(pathway)
 
 plotGseaTable(

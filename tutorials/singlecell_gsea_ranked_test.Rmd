@@ -2,29 +2,276 @@
 title: "Singlecell GSEA Ranked Test"
 author: "Mark J Lawson"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float:
+          collapsed: true
+          smooth_scroll: true
+          print: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Performing a GSEA Rank Test on Single Cell Data
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+The following is a tutorial on how to perform a GeneSet Enrichmment Analysis (GSEA) rank test on single cell data using `Seurat`, `DESeq2`, and the `fGSEA` packages. In a nutshell, we use methods to determine differentially expressed genes (DEGs) and use their resulting statistical metrics to rank the genes for a GSEA test.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Initializing the data
 
-```{r cars}
-summary(cars)
+The following are the required packages.
+
+```{r library, message=FALSE}
+# packages for doing the analysis
+library(Seurat) # For single cell analysis
+library(SeuratData) # To get the example dataset
+library(fgsea)  # Fast GSEA implementation
+library(msigdbr)  # For gene sets
+library(DESeq2) # For pseudo-bulk differential analysis
+library(dplyr) # Tidy data manipulation
+library(ggplot2) # Plotting tools
+library(cowplot) # Combine plots
 ```
 
-## Including Plots
+### Loading in the data
 
-You can also embed plots, for example:
+In the following code, we load in the `ifnb` dataset. In this experiment, PBMCs were split into a stimulated and control group and the stimulated group was treated with interferon beta. This dataset is annotated and can be pulled from the `SeuratData` package. Ultimately, we are going to see what pathways are being affected when we compare stimulated to control cells.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r load, message=FALSE, warning=FALSE}
+# get data for doing analysis
+InstallData("ifnb")
+
+LoadData("ifnb") # load the data
+# Update old Seurat object to accommodate new features
+ifnb <- UpdateSeuratObject(ifnb)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### Get Genesets
+
+Here we use the `msigdbr` package to pull in the Hallmark geneset. Other collections like KEGG/Reactome or GO can be pulled by adjusting the `collection` and `subcollection` parameters. Here we are pulling the genesets for humans, but mouse data can be pulled in either setting `species` to \"Mus musculus\" or `db_species` to \"MM\". The function `msigdbr_species()` lists the available options.
+
+```{r genesets, message=FALSE, warning=FALSE}
+# Get gene sets from MSigDB (e.g., Hallmark pathways)
+gene_sets <- msigdbr(species = "Homo sapiens", collection = "H")
+# Or use other collections:
+# "C2" for curated gene sets (KEGG, Reactome, Wikipathways etc)
+# "C5" for GO terms
+# "C8" for cell type signatures
+
+# Convert to list format for fgsea
+pathways <- gene_sets %>%
+  split(x = .$gene_symbol, f = .$gs_name)
+
+```
+
+## First approach: Simple comparison with FindMarkers
+
+### Getting the DEGs
+In situations where we do not have technical or biological replicates and thus are expecting no batch effects, we can split up the data by cell type and perform a comparison using the `Seurat` function `FindMarkers`. Ultimately we then have a list of differentially expressed genes and their corresponding metrics that can be fed into the GSEA rank test.
+
+```{r findmarkers, message=FALSE, warning=FALSE}
+Idents(ifnb) <- "seurat_annotations" # ensure that the idents are the cell types
+
+# focus on one cell
+ifnb_cd14 <- subset(ifnb, idents = "CD14 Mono")
+
+# label cells with conditions
+Idents(ifnb_cd14) <- "stim"
+table(Idents(ifnb_cd14))
+
+# find differentially expressed genes between markers
+markers <- FindMarkers(
+  ifnb_cd14,
+  ident.1 = "STIM",
+  ident.2 = "CTRL",
+  test.use = "wilcox",  # or "MAST", "DESeq2"
+  logfc.threshold = 0,  # Get all genes
+  min.pct = 0.1
+)
+markers$gene_name <- rownames(markers) # make gene names a column in data frame
+
+head(markers)
+```
+### Performing GSEA on the ranked list
+In order to perform the analysis and to give a directionality to the pathway enrichment, `fGSEA` requires a value that indicates both the significance of a gene's differential expression and whether the gene is up-regulated or down-regulated. To do this, we take the `-log10` of the p-value and multiply it by the sign of the log2 fold change. Also, since we have p-values of 0, we are replacing those values with the smallest non-zero value, to avoid results of `Inf` due to the log10 of 0 being undefined.
+The resulting `stat` value is then used to rank the genes and then passed to `fGSEA`.
+
+```{r fgsea1, message=FALSE, warning=FALSE}
+# find minimum non-zero p-value
+min_nz_pval <- min(markers$p_val[markers$p_val >0])
+
+# create "stat" value for ranking
+markers$stat <- -log10(pmax(markers$p_val, min_nz_pval)) * sign(markers$avg_log2FC)
+
+# Create ranked gene list (by log fold change or stat)
+# Important: remove NAs and sort
+ranked_genes <- markers %>%
+  filter(!is.na(stat) &
+           !is.infinite(stat)) %>%
+  arrange(desc(stat)) %>%
+  pull(stat, name = gene_name)
+
+# Run GSEA
+fgsea_results <- fgsea(
+  pathways = pathways,
+  stats = ranked_genes,
+  minSize = 15, # Minimal size of a gene set to test
+  maxSize = 500 # Maximal size of a gene set to test
+)
+
+# output results
+fgsea_results %>%
+  arrange(padj) %>%
+  head(5)
+
+```
+
+### Plotting the results
+
+#### Table Plot
+```{r tableplot1, message=FALSE, warning=FALSE}
+# Table plot of top pathways
+topPathways <- fgsea_results %>%
+  filter(padj < 0.05) %>%
+  arrange(desc(abs(NES))) %>%
+  pull(pathway)
+
+plotGseaTable(
+  pathways[topPathways],
+  ranked_genes,
+  fgsea_results,
+  gseaParam = 0.5,
+  pathwayLabelStyle = list(size=8)
+)
+```
+
+#### Enrichment Plot
+
+```{r enrichmentplot1, message=FALSE, warning=FALSE}
+# Plot enrichment for top pathway
+p1 <- plotEnrichment(
+  pathways[["HALLMARK_INTERFERON_GAMMA_RESPONSE"]], 
+  ranked_genes
+) + labs(title = "IFN-γ Response")
+
+p2 <- plotEnrichment(
+  pathways[["HALLMARK_OXIDATIVE_PHOSPHORYLATION"]], 
+  ranked_genes
+) + labs(title = "Oxidative Phosphorylation")
+
+plot_grid(p1, p2, ncol=1)
+```
+
+## Second approach: Pseudo-bulk analysis using DESeq2
+
+### Getting the DEGs
+
+```{r pseudo, message=FALSE, warning=FALSE}
+# aggregate cells to create "pseudobulk" 
+aggregate_ifnb <- AggregateExpression(ifnb, group.by = c("seurat_annotations", "stim"), 
+                                      return.seurat = TRUE)
+Idents(aggregate_ifnb) <- "seurat_annotations"
+agg_ifnb_cdmono <- subset(aggregate_ifnb, idents=c("CD14 Mono",
+                                                   "CD16 Mono"))
+
+# create metadata for samples
+sample_metadata <- agg_ifnb_cdmono@meta.data %>%
+  select(stim, seurat_annotations, orig.ident) %>%
+  distinct() %>%
+  as.data.frame()
+rownames(sample_metadata) <- sample_metadata$orig.ident
+
+# create DESeq data set
+dds <- DESeqDataSetFromMatrix(
+  countData = agg_ifnb_cdmono[["RNA"]]$counts,
+  colData = sample_metadata,
+  design = ~ stim
+)
+
+# run DESeq
+dds <- DESeq(dds)
+
+# pull out results
+res <- results(dds, contrast = c("stim", "STIM", "CTRL"))
+
+# reformat for extracting
+res <- as.data.frame(res)
+res$gene_name <- rownames(res)
+```
+
+### Performing GSEA on the ranked list
+
+```{r fgsea2, message=FALSE, warning=FALSE}
+# Create ranked list
+ranked_genes <- res %>%
+  filter(!is.na(stat)) %>%
+  arrange(desc(stat)) %>%
+  pull(stat, name = gene_name)
+
+# Run GSEA
+fgsea_results <- fgsea(
+  pathways = pathways,
+  stats = ranked_genes,
+  minSize = 15,
+  maxSize = 500
+)
+
+# output results
+fgsea_results %>%
+  arrange(padj) %>%
+  head(5)
+
+fgsea_results %>%
+  arrange(padj) %>%
+  tail(5)
+
+```
+
+### Plotting the results
+
+#### Table Plot
+
+```{r tableplot2, message=FALSE, warning=FALSE}
+# Table plot of top pathways
+topPathways <- fgsea_results %>%
+  filter(padj < 0.05) %>%
+  arrange(desc(abs(NES))) %>%
+  pull(pathway)
+
+plotGseaTable(
+  pathways[topPathways],
+  ranked_genes,
+  fgsea_results,
+  gseaParam = 0.5,
+  pathwayLabelStyle = list(size=8)
+)
+
+```
+
+#### Enrichment Plot
+
+```{r enrichmentplot2, message=FALSE, warning=FALSE}
+
+# compare top pathway to bottom pathway
+p1 <- plotEnrichment(
+  pathways[["HALLMARK_INFLAMMATORY_RESPONSE"]], 
+  ranked_genes
+) + labs(title = "Inflammatory Response")
+
+p2 <- plotEnrichment(
+  pathways[["HALLMARK_NOTCH_SIGNALING"]], 
+  ranked_genes
+) + labs(title = "Notch Signaling")
+
+plot_grid(p1, p2, ncol=1)
+```
+
+#### Session info
+``` {r sessionn}
+sessionInfo()
+```
+
+
+
