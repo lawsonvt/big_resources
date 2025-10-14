@@ -1,5 +1,5 @@
 ---
-title: "Singlecell GSEA Ranked Test"
+title: "Performing a GSEA Rank Test on Single Cell Data"
 author: "Mark J Lawson"
 date: "`r Sys.Date()`"
 output: 
@@ -15,9 +15,13 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Performing a GSEA Rank Test on Single Cell Data
+The following is a tutorial on how to perform a GeneSet Enrichment Analysis (GSEA) rank test on single cell data using [`Seurat`](https://satijalab.org/seurat/), 
+[`DESeq2`](https://bioconductor.org/packages/release/bioc/html/DESeq2.html), and the 
+[`fGSEA`](https://bioconductor.org/packages/release/bioc/html/fgsea.html) packages. In a nutshell, we use methods to determine differentially expressed genes (DEGs) and use their resulting statistical metrics to rank the genes for a GSEA test.
 
-The following is a tutorial on how to perform a GeneSet Enrichmment Analysis (GSEA) rank test on single cell data using `Seurat`, `DESeq2`, and the `fGSEA` packages. In a nutshell, we use methods to determine differentially expressed genes (DEGs) and use their resulting statistical metrics to rank the genes for a GSEA test.
+This workflow details two approaches for generating DEGs for the rank test. The first uses the `FindMarkers()` function from `Seurat` and is ideal for simple comparisons where no batch effects are present. The second uses `DESeq2` in combination with aggregation of the cell-based expression to do a pseudobulk RNASeq differential expression analysis.
+
+Both first require the following steps.
 
 ## Initializing the data
 
@@ -37,7 +41,7 @@ library(cowplot) # Combine plots
 
 ### Loading in the data
 
-In the following code, we load in the `ifnb` dataset. In this experiment, PBMCs were split into a stimulated and control group and the stimulated group was treated with interferon beta. This dataset is annotated and can be pulled from the `SeuratData` package. Ultimately, we are going to see what pathways are being affected when we compare stimulated to control cells.
+First we load in the `ifnb` dataset, which was originally generated as part of [this paper](https://www.nature.com/articles/nbt.4042) and used as an example in this [`Seurat` tutorial](https://satijalab.org/seurat/articles/integration_introduction). In this experiment, PBMCs were split into a stimulated and control group and the stimulated group was treated with interferon beta. This dataset is annotated with cells already having their cell types determined and can be pulled from the `SeuratData` package. Ultimately, we are going to see what genesets are being affected when we compare stimulated to control cells.
 
 ```{r load, message=FALSE, warning=FALSE}
 # get data for doing analysis
@@ -50,7 +54,7 @@ ifnb <- UpdateSeuratObject(ifnb)
 
 ### Get Genesets
 
-Here we use the `msigdbr` package to pull in the Hallmark geneset. Other collections like KEGG/Reactome or GO can be pulled by adjusting the `collection` and `subcollection` parameters. Here we are pulling the genesets for humans, but mouse data can be pulled in either setting `species` to \"Mus musculus\" or `db_species` to \"MM\". The function `msigdbr_species()` lists the available options.
+Here we use the `msigdbr` package to pull in the Hallmark genesets. Other collections like KEGG/Reactome or GO can be pulled by adjusting the `collection` and `subcollection` parameters. Here we are pulling the genesets for humans, but mouse data can be pulled in instead by either setting `species` to \"Mus musculus\" or `db_species` to \"MM\". The function `msigdbr_species()` lists the available options.
 
 ```{r genesets, message=FALSE, warning=FALSE}
 # Get gene sets from MSigDB (e.g., Hallmark pathways)
@@ -68,8 +72,10 @@ pathways <- gene_sets %>%
 
 ## First approach: Simple comparison with FindMarkers
 
-### Getting the DEGs
 In situations where we do not have technical or biological replicates and thus are expecting no batch effects, we can split up the data by cell type and perform a comparison using the `Seurat` function `FindMarkers`. Ultimately we then have a list of differentially expressed genes and their corresponding metrics that can be fed into the GSEA rank test.
+
+### Getting the DEGs
+In this example, we are focusing specifically on one cell type (CD14 Mono). We then determine which genes show a difference between "STIM" (stimulated cells) and "CTRL" (control cells) using the wilcox test in `FindMarkers()`, although other tests can be used.
 
 ```{r findmarkers, message=FALSE, warning=FALSE}
 Idents(ifnb) <- "seurat_annotations" # ensure that the idents are the cell types
@@ -95,7 +101,7 @@ markers$gene_name <- rownames(markers) # make gene names a column in data frame
 head(markers)
 ```
 ### Performing GSEA on the ranked list
-In order to perform the analysis and to give a directionality to the pathway enrichment, `fGSEA` requires a value that indicates both the significance of a gene's differential expression and whether the gene is up-regulated or down-regulated. To do this, we take the `-log10` of the p-value and multiply it by the sign of the log2 fold change. Also, since we have p-values of 0, we are replacing those values with the smallest non-zero value, to avoid results of `Inf` due to the log10 of 0 being undefined.
+In order to perform the analysis and to give a directionality to the pathway enrichment, `fGSEA` requires a value that indicates both the significance of a gene's differential expression and whether the gene is up-regulated or down-regulated. To do this, we take the `-log10` of the p-value and multiply it by the sign of the `log2` fold change. Also, since we have p-values of 0, we are replacing those values with the smallest non-zero value, to avoid results of `Inf` due to the `log10` of 0 being undefined.
 The resulting `stat` value is then used to rank the genes and then passed to `fGSEA`.
 
 ```{r fgsea1, message=FALSE, warning=FALSE}
@@ -128,9 +134,15 @@ fgsea_results %>%
 
 ```
 
+The results consist of genesets (that pass the given filtering thresholds) and their corresponding metrics. Important here is the `ES` value which shows the "enrichment score". It reflects the degree to which a geneset is overrepresented at the top or bottom of a ranked list of genes [(more info)](https://www.gsea-msigdb.org/gsea/doc/GSEAUserGuideTEXT.htm#_Enrichment_Score_(ES)). It also indicates the overall directionality of the geneset with positive values indicating up-regulation and negative values indicating down-regulation. 
+`NES` is a normalized version of that score, normalized to a mean enrichment of random samples of the same size [(more info)](https://www.gsea-msigdb.org/gsea/doc/GSEAUserGuideTEXT.htm#_Normalized_Enrichment_Score). `pval` and `padj` represent the raw significance of the enrichment and a BH-adjusted version of that p-value, respectively.
+
 ### Plotting the results
 
 #### Table Plot
+
+Using a table plot, we can better visualize the top (or whatever set of) genesets. It shows some of the metrics of the analysis, as well as visualizing the ranked gene list, showcasing why the geneset was called as being significant.
+
 ```{r tableplot1, message=FALSE, warning=FALSE}
 # Table plot of top pathways
 topPathways <- fgsea_results %>%
@@ -147,7 +159,11 @@ plotGseaTable(
 )
 ```
 
+Here we see our 3 signficant genesets (at an FDR of 0.05), which includes two up-regulated and one down-regulated pathway. To get more details on the rankings that generated them, we can use ...
+
 #### Enrichment Plot
+
+Through enrichment plots, we can better visualize how the enrichment score was generated by plotting it out in relation to the ranking of genes in a geneset. Here we showcase the difference between an up-regulated and down-regulated geneset.
 
 ```{r enrichmentplot1, message=FALSE, warning=FALSE}
 # Plot enrichment for top pathway
@@ -166,7 +182,11 @@ plot_grid(p1, p2, ncol=1)
 
 ## Second approach: Pseudo-bulk analysis using DESeq2
 
+In situations where we expect the comparison to have to deal with batch effects, for instance due to biological or even technical replicates, a pseudobulk analysis using an RNASeq differential expression tool like `DESeq2` is a better option. The following section walks through doing that kind of analysis.
+
 ### Getting the DEGs
+
+In order to create a set of "replicates" we will look at the differential expression between stimulated and control cells across two cell types: CD14 Mono and CD16 Mono. In the following code we aggregate the expression for each cell type and pull out the resulting cell types we want to work with. We further create metadata and use that to start the process of running `DESeq2`. After running through that workflow, and contrasting STIM to CTRL, we have a list of DEGs, ready for use in `fGSEA`.
 
 ```{r pseudo, message=FALSE, warning=FALSE}
 # aggregate cells to create "pseudobulk" 
@@ -183,6 +203,8 @@ sample_metadata <- agg_ifnb_cdmono@meta.data %>%
   as.data.frame()
 rownames(sample_metadata) <- sample_metadata$orig.ident
 
+head(sample_metadata)
+
 # create DESeq data set
 dds <- DESeqDataSetFromMatrix(
   countData = agg_ifnb_cdmono[["RNA"]]$counts,
@@ -193,15 +215,19 @@ dds <- DESeqDataSetFromMatrix(
 # run DESeq
 dds <- DESeq(dds)
 
-# pull out results
+# determine results of contrasting STIM vs CTRL samples
 res <- results(dds, contrast = c("stim", "STIM", "CTRL"))
 
 # reformat for extracting
 res <- as.data.frame(res)
 res$gene_name <- rownames(res)
+
+head(res[order(res$padj),])
 ```
 
 ### Performing GSEA on the ranked list
+
+Unlike with the `FindMarkers()` function, `DESeq2` gives us a signed ranking value we can use directly into `fGSEA`: `stat`. We can then rank the genes as we did with the previous analysis and run `fGSEA`.
 
 ```{r fgsea2, message=FALSE, warning=FALSE}
 # Create ranked list
@@ -229,9 +255,13 @@ fgsea_results %>%
 
 ```
 
+Here we also showcase both the top genesets and the bottom genesets, in terms of significance.
+
 ### Plotting the results
 
 #### Table Plot
+
+As before, a table plot is a nice balance between raw metrics and visualization of the ranked set of genes that led to the genesets being labeled as significant.
 
 ```{r tableplot2, message=FALSE, warning=FALSE}
 # Table plot of top pathways
@@ -252,6 +282,8 @@ plotGseaTable(
 
 #### Enrichment Plot
 
+For this set of enrichment plots, we are showing the contrast between something being significant (first plot) and not significant (second plot). As we can see, unlike the first plot, the second plot never reaches a high enrichment score in either the negative or positive direction. This is further demonstrated by the even distribution of the gene rankins.
+ 
 ```{r enrichmentplot2, message=FALSE, warning=FALSE}
 
 # compare top pathway to bottom pathway
@@ -268,8 +300,13 @@ p2 <- plotEnrichment(
 plot_grid(p1, p2, ncol=1)
 ```
 
+
 #### Session info
-``` {r sessionn}
+
+Finally, here are the package versions used to create this tutorial.
+
+
+``` {r session}
 sessionInfo()
 ```
 
