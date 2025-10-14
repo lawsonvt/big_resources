@@ -4,11 +4,14 @@ author: "Mark J Lawson"
 date: "`r Sys.Date()`"
 output: 
   html_document:
+    self_contained: true
     toc: true
     toc_float:
           collapsed: true
           smooth_scroll: true
           print: true
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })
 ---
 
 ```{r setup, include=FALSE}
