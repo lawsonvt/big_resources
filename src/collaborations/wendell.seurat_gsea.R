@@ -104,6 +104,10 @@ results <- lapply(cell_types, function(cell_type) {
 })
 names(results) <- cell_types
 
+
+# save results
+saveRDS(results, file=paste0(out_dir, "gsea_results.RDS"))
+
 # output results to excel files
 
 for (cell_type in names(results)) {
