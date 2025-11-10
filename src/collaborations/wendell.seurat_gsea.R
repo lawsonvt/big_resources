@@ -51,7 +51,6 @@ cell_types <- unique(seu$cell_type)
 conditions <- unique(seu$condition)
 
 deg_method <- "MAST"
-deg_threshold <- 0.1
 
 
 results <- lapply(cell_types, function(cell_type) {
@@ -72,14 +71,23 @@ results <- lapply(cell_types, function(cell_type) {
                       logfc.threshold=0.1,
                       min.pct=0.01,
                       verbose=F)
-  degs <- degs[degs$p_val_adj < deg_threshold,]
   degs$gene_name <- rownames(degs)
   
-  ranked_genes <- degs %>%
-    arrange(desc(avg_log2FC)) %>%
-    pull(avg_log2FC, name = gene_name)
+  # find minimum non-zero p-value
+  min_nz_pval <- min(degs$p_val[degs$p_val >0])
   
-  print("Run GSEA on significant DEGs ...")
+  # create "stat" value for ranking
+  degs$stat <- -log10(pmax(degs$p_val, min_nz_pval)) * sign(degs$avg_log2FC)
+  
+  # Create ranked gene list (by log fold change or stat)
+  # Important: remove NAs and sort
+  ranked_genes <- degs %>%
+    filter(!is.na(stat) &
+             !is.infinite(stat)) %>%
+    arrange(desc(stat)) %>%
+    pull(stat, name = gene_name)
+  
+  print("Run GSEA on rankged DEGs ...")
   
   total_gsea_results <- lapply(names(total_gene_sets), function(gs_name) {
     
@@ -132,6 +140,10 @@ for (cell_type in names(results)) {
   
   cell_results <- results[[cell_type]]
   
+  # make a plot dir
+  plot_dir <- paste0(out_dir, to_snake_case(cell_type), "_plots/")
+  dir.create(plot_dir, showWarnings = F)
+  
   for (gene_set_name in names(cell_results$gsea_results)) {
     
     top_gene_sets <- cell_results$gsea_results[[gene_set_name]]$pathway[1:top_count]
@@ -147,7 +159,7 @@ for (cell_type in names(results)) {
       gseaParam = 0.5,
       pathwayLabelStyle = list(size=8)
     )
-    ggsave(paste0(out_dir, 
+    ggsave(paste0(plot_dir, 
                   to_snake_case(cell_type), 
                   ".", paste0(conditions, collapse="_minus_"),
                   ".", gene_set_name,
