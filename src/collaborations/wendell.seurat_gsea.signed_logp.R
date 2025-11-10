@@ -110,7 +110,8 @@ results <- lapply(cell_types, function(cell_type) {
   
   # return GSEA results as well as ranked list
   return(list(ranked_genes=ranked_genes,
-              gsea_results=total_gsea_results))
+              gsea_results=total_gsea_results,
+              degs=degs))
   
 })
 names(results) <- cell_types
