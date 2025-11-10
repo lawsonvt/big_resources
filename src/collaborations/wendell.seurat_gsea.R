@@ -1,10 +1,11 @@
-library(Seurat)
+library(Seurat) 
 library(msigdbr)  # For gene sets
 library(dplyr)
 library(fgsea)
 library(openxlsx)
 library(snakecase)
 library(ggplot2)
+library(cowplot)
 
 
 
@@ -74,7 +75,7 @@ results <- lapply(cell_types, function(cell_type) {
   degs$gene_name <- rownames(degs)
   
   # find minimum non-zero p-value
-  min_nz_pval <- min(degs$p_val[degs$p_val >0])
+  min_nz_pval <- min(degs$p_val[degs$p_val > 0])
   
   # create "stat" value for ranking
   degs$stat <- -log10(pmax(degs$p_val, min_nz_pval)) * sign(degs$avg_log2FC)
@@ -87,7 +88,7 @@ results <- lapply(cell_types, function(cell_type) {
     arrange(desc(stat)) %>%
     pull(stat, name = gene_name)
   
-  print("Run GSEA on rankged DEGs ...")
+  print("Run GSEA on ranked DEGs ...")
   
   total_gsea_results <- lapply(names(total_gene_sets), function(gs_name) {
     
@@ -167,6 +168,38 @@ for (cell_type in names(results)) {
       
   }
   
+}
+
+# GSEA plots
+top_count <- 9
+
+for (cell_type in names(results)) {
+  
+  cell_results <- results[[cell_type]]
+  
+  # make a plot dir
+  plot_dir <- paste0(out_dir, to_snake_case(cell_type), "_plots/")
+  dir.create(plot_dir, showWarnings = F)
+  
+  for (gene_set_name in names(cell_results$gsea_results)) {
+    
+    top_gene_sets <- cell_results$gsea_results[[gene_set_name]]$pathway[1:top_count]
+    
+    plot_list <- lapply(top_gene_sets, function(pathway) {
+      
+      plotEnrichment(
+        total_gene_sets[[gene_set_name]][[pathway]],
+        cell_results$ranked_genes
+      ) + labs(title = pathway)
+      
+    })
+    plot_grid(plotlist=plot_list, ncol=3)
+    ggsave(paste0(plot_dir, 
+                  to_snake_case(cell_type), 
+                  ".", paste0(conditions, collapse="_minus_"),
+                  ".", gene_set_name,
+                  ".top_pathway_gsea_enrichment.png"), width=14, height=10, bg = "white")
+  }
 }
 
 
