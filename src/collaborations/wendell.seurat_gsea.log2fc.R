@@ -10,7 +10,7 @@ library(cowplot) # combining plots
 # Initial setup ----------------------------------------------------------------
 
 # create output directory for results
-out_dir <- "~/Documents/projects/lukenslab/ben_wendell/gsea_results.signed_logp/"
+out_dir <- "~/Documents/projects/lukenslab/ben_wendell/gsea_results.log2fc/"
 dir.create(out_dir, showWarnings = F)
 
 # read in Seurat object
@@ -83,10 +83,8 @@ results <- lapply(cell_types, function(cell_type) {
   # Create ranked gene list (by log fold change or stat)
   # Important: remove NAs and sort
   ranked_genes <- degs %>%
-    filter(!is.na(stat) &
-             !is.infinite(stat)) %>%
-    arrange(desc(stat)) %>%
-    pull(stat, name = gene_name)
+    arrange(desc(avg_log2FC)) %>%
+    pull(avg_log2FC, name = gene_name)
   
   print("Run GSEA on ranked DEGs ...")
   
