@@ -6,6 +6,10 @@ library(ggplot2) # plotting
 library(cowplot) # combining plots
 library(data.table)
 
+# for graphing and plotting
+library(igraph)
+library(ggraph)
+
 out_dir <- "~/Documents/projects/jianglab/weronika_gniadzik/gsea_results/"
 dir.create(out_dir, showWarnings = F)
 
@@ -35,6 +39,10 @@ names(data_list) <- gsub(".csv", "", basename(csv_files))
 
 reactome_gene_sets <- msigdbr(species = "human", collection = "C2", subcollection = "CP:REACTOME")
 gobp_gene_sets <- msigdbr(species = "human", collection = "C5", subcollection = "GO:BP")
+
+# clean up names
+reactome_gene_sets$gs_name <- tolower(gsub("\\_", " ", gsub("REACTOME_", "", reactome_gene_sets$gs_name)))
+gobp_gene_sets$gs_name <- tolower(gsub("\\_", " ", gsub("GOBP_", "", gobp_gene_sets$gs_name)))
 
 # function to convert data frames to lists
 list_convert <- function(gene_sets) {
@@ -93,13 +101,269 @@ for (data_name in names(gsea_results)) {
   gsea_data <- gsea_results[[data_name]]
   
   write.xlsx(gsea_data$gsea_results,
-             file=paste0(out_dir, data_name, ".gsea_results.xlsx"))
+             file=paste0(out_dir, data_name, ".gsea_results.xlsx"),
+             colWidths="auto")
   
 }
 
+# create graph plots
 
 
 
+# Extract leading edge genes for significant pathways
+prepare_cnetplot_data <- function(fgsea_res, 
+                                  gene_data, 
+                                  pathways_list, 
+                                  padj_cutoff = 0.05) {
+  # Filter significant results
+  sig <- fgsea_res[padj < padj_cutoff]
+  
+  if (nrow(sig) == 0) {
+    stop("No significant pathways found. Try increasing padj_cutoff.")
+  }
+  
+  # Create gene-pathway mapping
+  gene_pathway_list <- list()
+  
+  for (i in 1:nrow(sig)) {
+    pathway_name <- sig$pathway[i]
+    leading_genes <- unlist(sig$leadingEdge[i])
+    gene_pathway_list[[pathway_name]] <- leading_genes
+  }
+  
+  return(list(
+    pathways = sig,
+    gene_pathway_map = gene_pathway_list
+  ))
+}
+
+# create plots for 
+create_fgsea_emapplot <- function(fgsea_res, 
+                                  pathways_list, 
+                                  top_n = 20,
+                                  similarity_cutoff = 0.2,
+                                  use_leading_edge = TRUE) {
+  # Select top pathways
+  top_pathways <- head(fgsea_res, top_n)
+  pathway_names <- top_pathways$pathway
+  
+  # Calculate Jaccard similarity between pathways
+  n_pathways <- length(pathway_names)
+  similarity_matrix <- matrix(0, nrow = n_pathways, ncol = n_pathways)
+  rownames(similarity_matrix) <- pathway_names
+  colnames(similarity_matrix) <- pathway_names
+  
+  for (i in 1:n_pathways) {
+    for (j in i:n_pathways) {
+      # Use leading edge genes if specified, otherwise use full pathway
+      if (use_leading_edge) {
+        genes_i <- unlist(top_pathways$leadingEdge[i])
+        genes_j <- unlist(top_pathways$leadingEdge[j])
+      } else {
+        genes_i <- pathways_list[[pathway_names[i]]]
+        genes_j <- pathways_list[[pathway_names[j]]]
+      }
+      
+      intersection <- length(intersect(genes_i, genes_j))
+      union <- length(union(genes_i, genes_j))
+      
+      jaccard <- intersection / union
+      similarity_matrix[i, j] <- jaccard
+      similarity_matrix[j, i] <- jaccard
+    }
+  }
+  
+  # Create edge list for pathways with similarity > cutoff
+  edges <- data.frame()
+  for (i in 1:(n_pathways-1)) {
+    for (j in (i+1):n_pathways) {
+      if (similarity_matrix[i, j] > similarity_cutoff) {
+        edges <- rbind(edges, data.frame(
+          from = pathway_names[i],
+          to = pathway_names[j],
+          similarity = similarity_matrix[i, j]
+        ))
+      }
+    }
+  }
+  
+  # Create graph
+  if (nrow(edges) == 0) {
+    warning("No pathway connections above similarity cutoff. Try lowering similarity_cutoff.")
+    # Create disconnected graph
+    g <- graph_from_data_frame(
+      data.frame(from = character(0), to = character(0)),
+      directed = FALSE,
+      vertices = pathway_names
+    )
+  } else {
+    g <- graph_from_data_frame(edges, directed = FALSE, vertices = pathway_names)
+    E(g)$weight <- edges$similarity
+  }
+  
+  # Add node attributes
+  V(g)$padj <- top_pathways$padj[match(V(g)$name, top_pathways$pathway)]
+  V(g)$NES <- top_pathways$NES[match(V(g)$name, top_pathways$pathway)]
+  V(g)$size <- top_pathways$size[match(V(g)$name, top_pathways$pathway)]
+  V(g)$avg_logfc <- as.numeric(top_pathways$avg_logfc[match(V(g)$name, top_pathways$pathway)])
+  
+  # Plot
+  set.seed(123)
+  p <- ggraph(g, layout = "fr") +
+    geom_edge_link(aes(width = similarity, alpha = similarity), 
+                   color = "grey60") +
+    geom_node_point(aes(size = size, color = avg_logfc)) +
+    geom_node_text(aes(label = name), repel = TRUE, size = 3, 
+                   max.overlaps = 20) +
+    scale_edge_width_continuous(range = c(0.5, 2), name = "Similarity") +
+    scale_edge_alpha_continuous(range = c(0.3, 0.8), guide = "none") +
+    scale_size_continuous(range = c(3, 10), name = "Gene Set Size") +
+    scale_color_gradient2(low = "blue", mid = "white", high = "red",
+                          midpoint = 0, name = "Avg Log2FC") +
+    theme_void() +
+    theme(legend.position = "right",
+          plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
+    ggtitle("Enrichment Map of Top Pathways")
+  
+  return(list(plot = p, similarity_matrix = similarity_matrix))
+}
+
+
+emap_plot_dir <- paste0(out_dir, "emap_plots/")
+dir.create(emap_plot_dir, showWarnings = F)
+
+for (data_type in names(gsea_results)) {
+  
+  data_gsea_results <- gsea_results[[data_type]]
+  
+  for (gs_name in names(data_gsea_results$gsea_results)) {
+    
+    pathways <- total_gene_sets[[gs_name]]
+    fgsea_results <- data_gsea_results$gsea_results[[gs_name]]
+    
+    emap <- create_fgsea_emapplot(fgsea_results,
+                                  pathways)
+    
+    print(emap$plot)
+    ggsave(paste0(emap_plot_dir, data_type, ".", gs_name, ".emap_pathways.png"),
+                  width=8, height=6, bg = "white")
+    
+  }
+  
+}
+
+# Extract leading edge genes for significant pathways
+prepare_cnetplot_data <- function(fgsea_res, 
+                                  gene_data, 
+                                  pathways_list, 
+                                  padj_cutoff = 0.05) {
+  # Filter significant results
+  sig <- fgsea_res[padj < padj_cutoff]
+  
+  if (nrow(sig) == 0) {
+    stop("No significant pathways found. Try increasing padj_cutoff.")
+  }
+  
+  # Create gene-pathway mapping
+  gene_pathway_list <- list()
+  
+  for (i in 1:nrow(sig)) {
+    pathway_name <- sig$pathway[i]
+    leading_genes <- unlist(sig$leadingEdge[i])
+    gene_pathway_list[[pathway_name]] <- leading_genes
+  }
+  
+  return(list(
+    pathways = sig,
+    gene_pathway_map = gene_pathway_list
+  ))
+}
+
+
+create_fgsea_cnetplot <- function(fgsea_res, gene_pathway_map, 
+                                  gene_data, top_n = 5, 
+                                  genes_per_pathway = 10) {
+  # Select top pathways
+  top_pathways <- head(fgsea_res, top_n)
+  
+  # Create edge list
+  edges <- data.frame()
+  
+  for (pathway in top_pathways$pathway) {
+    genes <- gene_pathway_map[[pathway]]
+    # Limit genes per pathway for visualization
+    genes <- head(genes, genes_per_pathway)
+    
+    for (gene in genes) {
+      edges <- rbind(edges, data.frame(
+        from = pathway,
+        to = gene
+      ))
+    }
+  }
+  
+  # Create graph
+  g <- graph_from_data_frame(edges, directed = FALSE)
+  
+  # Add node attributes
+  V(g)$type <- ifelse(V(g)$name %in% top_pathways$pathway, "pathway", "gene")
+  
+  # Add fold change for genes
+  V(g)$log2FC <- NA
+  gene_idx <- which(V(g)$type == "gene")
+  for (i in gene_idx) {
+    gene_name <- V(g)$name[i]
+    if (gene_name %in% gene_data$gene) {
+      V(g)$log2FC[i] <- as.numeric(gene_data$log2FC[gene_data$gene == gene_name])
+    }
+  }
+  
+  # Plot
+  p <- ggraph(g, layout = "fr") +
+    geom_edge_link(alpha = 0.3, color = "grey70") +
+    geom_node_point(aes(color = log2FC, size = ifelse(type == "pathway", 5, 3),
+                        shape = type)) +
+    geom_node_text(aes(label = name), repel = TRUE, size = 3) +
+    scale_color_gradient2(low = "blue", mid = "white", high = "red", 
+                          midpoint = 0, na.value = "grey80",
+                          name = "Fold Change") +
+    scale_size_identity() +
+    scale_shape_manual(values = c("pathway" = 15, "gene" = 19),
+                       name = "Node Type") +
+    theme_void() +
+    theme(legend.position = "right") +
+    ggtitle("Gene-Pathway Network")
+  
+  return(p)
+}
+
+cnet_plot_dir <- paste0(out_dir, "cnet_plots/")
+dir.create(cnet_plot_dir, showWarnings = F)
+
+for (data_type in names(gsea_results)) {
+  
+  data_gsea_results <- gsea_results[[data_type]]
+  gene_data <- data_list[[data_type]]
+  
+  for (gs_name in names(data_gsea_results$gsea_results)) {
+    
+    pathways <- total_gene_sets[[gs_name]]
+    fgsea_results <- data_gsea_results$gsea_results[[gs_name]]
+    
+    cnet_data <- prepare_cnetplot_data(fgsea_results,
+                                       gene_data,
+                                       pathways)
+    
+    create_fgsea_cnetplot(cnet_data$pathways,
+                          cnet_data$gene_pathway_map,
+                          gene_data,
+                          top_n = 10,
+                          genes_per_pathway = 10)
+    ggsave(paste0(cnet_plot_dir, data_type, ".", gs_name, ".cnet_plot.png"),
+           width=8, height=6, bg = "white")
+    
+  }
+}
 
 
 
