@@ -4,26 +4,36 @@ library(fgsea) # GSEA test
 library(openxlsx) # excel output
 library(ggplot2) # plotting
 library(cowplot) # combining plots
-library(data.table)
+library(data.table) # manipulate fgsea output
 
 # for graphing and plotting
 library(igraph)
 library(ggraph)
 
+# output directory
 out_dir <- "~/Documents/projects/jianglab/weronika_gniadzik/gsea_results/"
 dir.create(out_dir, showWarnings = F)
+
+# Plotting parameters ----------------------------------------------------------
+emap_pathways <- 20
+
+cnet_pathways <- 10
+cnet_genes <- 10
 
 
 # Read in the files ------------------------------------------------------------
 in_dir <- "~/Documents/projects/jianglab/weronika_gniadzik/"
 
+# get all CSV files in the directory
 csv_files <- list.files(in_dir, ".csv", full.names=T)
 
+# read in and clean up data
 data_list <- lapply(csv_files, function(file) {
   
   data <- read.csv(file, sep = ";", dec = ",")
   colnames(data) <- c("gene", "log2FC", "neg_logFDR")
   
+  # value needed for GSEA ranked test
   data$signed_neg_logFDR <- data$neg_logFDR *
     sign(data$log2FC)
   
@@ -57,11 +67,13 @@ total_gene_sets <- list(reactome=list_convert(reactome_gene_sets),
 # Perform GSEA Test ------------------------------------------------------------
 gsea_results <- lapply(data_list, function(data) {
   
+  # rank genes based on the signed negative logp
   ranked_genes <- data %>%
     filter(!is.na(signed_neg_logFDR)) %>%
     arrange(desc(signed_neg_logFDR)) %>%
     pull(signed_neg_logFDR, name = gene)
   
+  # determine the GSEA results for each pathway set
   total_gsea_results <- lapply(names(total_gene_sets), function(gs_name) {
     
     print(gs_name)
@@ -75,6 +87,7 @@ gsea_results <- lapply(data_list, function(data) {
       maxSize = 500 # Maximal size of a gene set to test
     )
     
+    # use the "leading edge" genes to determine an average fold change
     fgsea_results$avg_logfc <- lapply(fgsea_results$leadingEdge, function(gene_list) {
       
       mean(data[data$gene %in% gene_list,]$log2FC)
@@ -106,38 +119,9 @@ for (data_name in names(gsea_results)) {
   
 }
 
-# create graph plots
+# EMAP Plots -------------------------------------------------------------------
 
-
-
-# Extract leading edge genes for significant pathways
-prepare_cnetplot_data <- function(fgsea_res, 
-                                  gene_data, 
-                                  pathways_list, 
-                                  padj_cutoff = 0.05) {
-  # Filter significant results
-  sig <- fgsea_res[padj < padj_cutoff]
-  
-  if (nrow(sig) == 0) {
-    stop("No significant pathways found. Try increasing padj_cutoff.")
-  }
-  
-  # Create gene-pathway mapping
-  gene_pathway_list <- list()
-  
-  for (i in 1:nrow(sig)) {
-    pathway_name <- sig$pathway[i]
-    leading_genes <- unlist(sig$leadingEdge[i])
-    gene_pathway_list[[pathway_name]] <- leading_genes
-  }
-  
-  return(list(
-    pathways = sig,
-    gene_pathway_map = gene_pathway_list
-  ))
-}
-
-# create plots for 
+# function to create the plots
 create_fgsea_emapplot <- function(fgsea_res, 
                                   pathways_list, 
                                   top_n = 20,
@@ -229,21 +213,29 @@ create_fgsea_emapplot <- function(fgsea_res,
 }
 
 
+# create directory for plots
 emap_plot_dir <- paste0(out_dir, "emap_plots/")
 dir.create(emap_plot_dir, showWarnings = F)
 
+# loop through results and make plots
 for (data_type in names(gsea_results)) {
   
+  # get the GSEA results for the comparison
   data_gsea_results <- gsea_results[[data_type]]
   
+  # create a plot for each geneset type
   for (gs_name in names(data_gsea_results$gsea_results)) {
     
+    # get pathways and GSEA results
     pathways <- total_gene_sets[[gs_name]]
     fgsea_results <- data_gsea_results$gsea_results[[gs_name]]
     
+    # make the plot
     emap <- create_fgsea_emapplot(fgsea_results,
-                                  pathways)
+                                  pathways,
+                                  top_n = emap_pathways)
     
+    # output and save the plot
     print(emap$plot)
     ggsave(paste0(emap_plot_dir, data_type, ".", gs_name, ".emap_pathways.png"),
                   width=8, height=6, bg = "white")
@@ -252,7 +244,9 @@ for (data_type in names(gsea_results)) {
   
 }
 
-# Extract leading edge genes for significant pathways
+# CNET plots ------------------------------------------------------------------
+
+# Function to extract leading edge genes for significant pathways
 prepare_cnetplot_data <- function(fgsea_res, 
                                   gene_data, 
                                   pathways_list, 
@@ -279,7 +273,7 @@ prepare_cnetplot_data <- function(fgsea_res,
   ))
 }
 
-
+# create the CNET plot
 create_fgsea_cnetplot <- function(fgsea_res, gene_pathway_map, 
                                   gene_data, top_n = 5, 
                                   genes_per_pathway = 10) {
@@ -337,28 +331,34 @@ create_fgsea_cnetplot <- function(fgsea_res, gene_pathway_map,
   return(p)
 }
 
+# create directory for CNET plots
 cnet_plot_dir <- paste0(out_dir, "cnet_plots/")
 dir.create(cnet_plot_dir, showWarnings = F)
 
+# loop through results and make plots
 for (data_type in names(gsea_results)) {
   
+  # get the GSEA results and the gene data for the comparison
   data_gsea_results <- gsea_results[[data_type]]
   gene_data <- data_list[[data_type]]
   
+  # create a plot for each geneset type
   for (gs_name in names(data_gsea_results$gsea_results)) {
-    
+    # get pathways and GSEA results
     pathways <- total_gene_sets[[gs_name]]
     fgsea_results <- data_gsea_results$gsea_results[[gs_name]]
     
+    # prepare the data
     cnet_data <- prepare_cnetplot_data(fgsea_results,
                                        gene_data,
                                        pathways)
     
+    # make the plot
     create_fgsea_cnetplot(cnet_data$pathways,
                           cnet_data$gene_pathway_map,
                           gene_data,
-                          top_n = 10,
-                          genes_per_pathway = 10)
+                          top_n = cnet_pathways,
+                          genes_per_pathway = cnet_genes)
     ggsave(paste0(cnet_plot_dir, data_type, ".", gs_name, ".cnet_plot.png"),
            width=8, height=6, bg = "white")
     
