@@ -51,13 +51,29 @@ ggplot(degs,
   geom_point(alpha=0.1) +
   geom_point(data=sig_degs, color="red", alpha=0.2) +
   geom_text_repel(data=sig_ag, color="black", aes(label=external_gene_name), 
-                  max.overlaps = 50, size = 3) +
+                  max.overlaps = 50, size = 4) +
   theme_bw() +
   geom_vline(xintercept = 0.5, linetype=2) +
   geom_vline(xintercept = -0.5, linetype=2) +
   geom_hline(yintercept = logpthresh, linetype=2) +
-  labs(x="Log2 Fold Change", y="-Log10 P")
+  labs(x="Log2 Fold Change", y="-Log10 P") +
+  theme(axis.title = element_text(size = 15))
 ggsave(paste0(out_dir, "volcano_plot.antigen_pres_annotate.png"), width=7, height=6)
+
+ggplot(degs,
+       aes(x=log2FoldChange,
+           y=log_p)) +
+  geom_point(alpha=0.1) +
+  geom_point(data=sig_degs, color="red", alpha=0.2) +
+  geom_text_repel(data=sig_ag[1:30,], color="black", aes(label=external_gene_name), 
+                  max.overlaps = 50, size = 4) +
+  theme_bw() +
+  geom_vline(xintercept = 0.5, linetype=2) +
+  geom_vline(xintercept = -0.5, linetype=2) +
+  geom_hline(yintercept = logpthresh, linetype=2) +
+  labs(x="Log2 Fold Change", y="-Log10 P") +
+  theme(axis.title = element_text(size = 15))
+ggsave(paste0(out_dir, "volcano_plot.antigen_pres_annotate.top30.png"), width=7, height=6)
 
 # heatmap ----------------------------------------------------------------------
 
@@ -75,10 +91,26 @@ vst_sig_ag <- as.matrix(vst_sig_ag)
 # scale it
 vst_sig_ag_s <- t(scale(t(vst_sig_ag)))
 
+# reoorder columns
+
 pdf(paste0(out_dir, "heatmap.antigen_pres.pdf"), width=6, height=9)
 print(Heatmap(vst_sig_ag_s,
         name = "VST\nZ-Score",
         col=colorRamp2(c(-1.5, 0, 1.5), c("blue","white","red")),
-        row_names_gp = gpar(fontsize = 9)))
+        row_names_gp = gpar(fontsize = 9),
+        cluster_columns=F))
 dev.off()
+
+# just the top 30
+
+top30_genes <- sig_ag[1:30,]$external_gene_name
+
+pdf(paste0(out_dir, "heatmap.antigen_pres.top30.pdf"), width=6, height=5)
+print(Heatmap(vst_sig_ag_s[top30_genes,],
+              name = "VST\nZ-Score",
+              col=colorRamp2(c(-1.5, 0, 1.5), c("blue","white","red")),
+              row_names_gp = gpar(fontsize = 9),
+              cluster_columns=F))
+dev.off()
+
 
