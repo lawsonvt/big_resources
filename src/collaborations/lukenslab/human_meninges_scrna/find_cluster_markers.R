@@ -22,6 +22,7 @@ seu_obj <- ScaleData(seu_obj)
 
 seu_obj <- JoinLayers(seu_obj)
 
+
 cluster_markers <- lapply(clusters, function(cluster) {
   
   print(paste0("Cluster ", cluster))
@@ -53,4 +54,20 @@ cluster_markers_f <- lapply(cluster_markers, function(data) {
 # write to excel
 write.xlsx(cluster_markers_f, file=paste0(out_dir, "cluster_markers.xlsx"),
            colWidths="auto")
+
+# use previous markers
+
+lab_cluster_markers <- list("B Cells"=c("Cd19", "Cd79a", "Ms4a1"),
+                            "Monocytes"=c("Ccr2", "Cd44"),
+                            "Neutrophils"=c("Ly6g", "Ngp", "Mmp8"),
+                            "Macrophages"=c("Pf4", "Mrc1", "Ms4a7"),
+                            "T Cells"=c("Trbc2", "Cd3d", "Lck"),
+                            "Microglia"=c("Sall1", "Hexb", "P2ry12"),
+                            "Proliferating Cells"=c("Mki67", "Ccnb1", "Tpx2"),
+                            "Pericytes"=c("Pdgfrb", "Rgs5"))
+
+
+
+
+
 

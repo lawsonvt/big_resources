@@ -73,6 +73,7 @@ seurat_merged <- IntegrateLayers(seurat_merged,
                                  method=HarmonyIntegration,
                                  orig.reduction = "pca",
                                  new.reduction = "harmony",
+                                 theta = 4,
                                  verbose = F)
 
 # cluster the harmonized data
@@ -126,12 +127,17 @@ DimPlot(seurat_merged, reduction="umap.harmony",
         group.by= "harmony_clusters",
         split.by = "condition",
         ncol=3, label = T)
-ggsave(paste0(out_dir, "per_condition_umap.png"), width=9, height=4)
+ggsave(paste0(out_dir, "per_condition_umap.png"), width=11, height=5)
+
+DimPlot(seurat_merged, reduction="umap.harmony", 
+        group.by= "harmony_clusters",
+        ncol=1, label = T)
+ggsave(paste0(out_dir, "total.harmony_umap.png"), width=7, height=5)
 
 # save the integrated seurat
 SaveSeuratRds(seurat_merged, paste0(out_dir, "all_samples.integrated_seurat.RDS"))
 
-table(seurat_merged$orig.ident, seurat_merged$harmony_clusters)
+table(seurat_merged$condition, seurat_merged$harmony_clusters)
 
 # plot of the counts
 cell_cluster_counts <- as.data.frame(table(sample_metadata$Sample_name,
@@ -173,7 +179,7 @@ ggplot(cell_total_counts,
   theme_bw() +
   guides(fill="none") +
   labs(x=NULL, y="Cell Count") +
-  theme(axis.text.x=element_text())
+  theme(axis.text.x=element_text(angle=35, hjust=1))
 ggsave(paste0(out_dir, "cell_counts_per_sample.barplots.png"), width=5, height=5)
 
 
