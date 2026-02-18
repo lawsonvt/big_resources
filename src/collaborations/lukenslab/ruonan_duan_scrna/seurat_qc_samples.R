@@ -5,7 +5,9 @@ library(scDblFinder)
 library(BiocParallel)
 #library(scRepertoire)
 
-root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
+#root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
+root_dir <- "~/projects/lukenslab/ruonan_duan/"
+
 
 # test comment
 
