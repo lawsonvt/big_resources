@@ -126,7 +126,7 @@ samples <- lapply(samples, function(sample) {
 
 # it looks like the elbow based number for dimensions should be 20, at least for now
 
-max_pc_dim <- 15
+max_pc_dim <- 20
 
 # doublet finding!
 # code adated from tutorial 
@@ -212,7 +212,7 @@ samples <- lapply(samples, function(sample) {
 
 # it looks like the elbow based number for dimensions should be 15, at least for now
 
-max_pc_dim <- 15
+max_pc_dim <- 20
 
 plot_dir <- paste0(out_dir, "6_clustering_umap/")
 dir.create(plot_dir, showWarnings = F)
