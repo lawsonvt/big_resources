@@ -241,16 +241,15 @@ contrasts <- list("KO_OPC-WT_OPC"=c("condition","KO_OPC","WT_OPC"),
 
 results_list <- lapply(contrasts, function(contrast) {
   
+  print(paste0(contrast[2], "-",
+               contrast[3]))
+  
   # calculate results
   res <- results(ddsTxi, contrast) 
   
   res <- as.data.frame(res)
   # remove NAs
   res <- res[!is.na(res$padj),]
-  
-  # posterior probability
-  res$post_p <- pbayes(res$pvalue, n_cores=2, 
-                   opt_method="SANN")$posterior_prob
   
   # merge in gene names
   res <- rownames_to_column(res, var = "gene_id")
