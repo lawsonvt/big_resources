@@ -2,6 +2,8 @@ library(DESeq2)
 library(tximport)
 library(ggplot2)
 library(openxlsx)
+library(data.table)
+library(ggrepel)
 
 out_dir <- "~/Documents/projects/gaultierlab/sam_wachamo/bulkRNASeq/results/deg_workflow/"
 
@@ -92,6 +94,14 @@ res <- res[order(res$pvalue),]
 write.xlsx(res, paste0(out_dir, "IAA_v_Vehicle.degs.xlsx"), colWidths="auto")
 saveRDS(res, paste0(out_dir, "IAA_v_Vehicle.degs.RDS"))
 
+# pull out top up and down regulated genes
+write.xlsx(res[res$log2FoldChange > 0,][1:100,], paste0(out_dir, "IAA_v_Vehicle.degs.top100_up.xlsx"), colWidths="auto")
+write.xlsx(res[res$log2FoldChange < 0,][1:100,], paste0(out_dir, "IAA_v_Vehicle.degs.top100_down.xlsx"), colWidths="auto")
+
+
+# save the DDS object as well
+saveRDS(ddsTxi, paste0(out_dir, "dds.RDS"))
+
 # make a volcano plot
 res$logp <- -log10(res$pvalue)
 
@@ -118,9 +128,56 @@ ggplot(res,
   labs(x="Log2 Fold Change", y="-Log10 P-Value")
 ggsave(paste0(out_dir, "volcano_plot.png"), width=7, height=6)
 
+# sex differences
+
+# get DEG results
+res <- results(ddsTxi, name="sex_M_vs_F")
+
+res <- as.data.frame(res)
+# remove NAs
+res <- res[!is.na(res$padj),]
+
+res$gene_id <- rownames(res)
+
+# annotate
+res <- merge(unique(tx2gene[,c("gene_id","gene_symbol")]),
+             res,
+             by="gene_id", all.y=T)
+
+# order it
+res <- res[order(res$pvalue),]
 
 
+# save to file
+write.xlsx(res, paste0(out_dir, "M_v_F.degs.xlsx"), colWidths="auto")
+saveRDS(res, paste0(out_dir, "M_v_F.degs.RDS"))
 
+# make a volcano plot
+res$logp <- -log10(res$pvalue)
+
+# fix "Inf" values
+max_logp <- max(res[!is.infinite(res$logp),]$logp)
+
+#res[is.infinite(res$logp),]$logp <- max_logp
+
+# pull out significant ones
+sig_res <- res[res$padj < 0.01 &
+                 abs(res$log2FoldChange) > 0.5,]
+
+sig_thresh <- min(sig_res$logp)
+
+ggplot(res,
+       aes(x=log2FoldChange,
+           y=logp)) +
+  geom_point(alpha=0.2) +
+  geom_hline(yintercept = sig_thresh, color="red", linetype=2) +
+  geom_vline(xintercept = 0.5, color="red", linetype=2) +
+  geom_vline(xintercept = -0.5, color="red", linetype=2) +
+  geom_point(data=sig_res, color="red", alpha=0.4) +
+  geom_text_repel(data=sig_res, aes(label=gene_symbol), color="red") +
+  theme_bw() +
+  labs(x="Log2 Fold Change", y="-Log10 P-Value")
+ggsave(paste0(out_dir, "M_v_f.volcano_plot.png"), width=7, height=6)
 
 
 

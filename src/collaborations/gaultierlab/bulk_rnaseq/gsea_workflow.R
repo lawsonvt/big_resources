@@ -82,5 +82,54 @@ write.xlsx(total_gsea_results,
 saveRDS(total_gsea_results,
         paste0(out_dir, "IAA_v_Vehicle.gsea_pathway_results.RDS"))
 
+# GSEA for sex comparison ------------------------------------------------------
+
+results_file <- "~/Documents/projects/gaultierlab/sam_wachamo/bulkRNASeq/results/deg_workflow/M_v_F.degs.RDS"
+
+results <- readRDS(results_file)
+
+results_dir <- out_dir
+
+dir.create(results_dir, showWarnings = F)
+
+# remove ensembl ID version
+results$gene_id <- gsub("\\.[0-9]+", "", results$gene_id)
+
+# Run GSEA ---------------------------------------------------------------------
+
+# Important: remove NAs and sort
+ranked_genes <- results %>%
+  filter(!is.na(stat) &
+           !is.infinite(stat)) %>%
+  arrange(desc(stat)) %>%
+  pull(stat, name = gene_id)
+
+total_gsea_results <- lapply(names(total_gene_sets), function(gs_name) {
+  
+  print(gs_name)
+  
+  gene_sets <- total_gene_sets[[gs_name]]
+  # run GSEA
+  fgsea_results <- fgsea(
+    pathways = gene_sets,
+    stats = ranked_genes,
+    minSize = 15, # Minimal size of a gene set to test
+    maxSize = 500 # Maximal size of a gene set to test
+  )
+  
+  return(fgsea_results[order(fgsea_results$pval),])
+})
+names(total_gsea_results) <- names(total_gene_sets)
+
+# write to file
+write.xlsx(total_gsea_results, 
+           paste0(out_dir, "M_v_F.gsea_pathway_results.xlsx"), colWidths="auto")
+saveRDS(total_gsea_results,
+        paste0(out_dir, "M_v_F.gsea_pathway_results.RDS"))
+
+
+
+
+
 
 
