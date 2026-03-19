@@ -49,6 +49,8 @@ metadata <- metadata[names(quant_files),]
 # get tx2gene
 tx2gene <- read.csv("~/Documents/projects/gaultierlab/sam_wachamo/bulkRNASeq/Mus_musculus.GRCm39.transcript2gene.csv")
 
+tx2gene_sex <- tx2gene[grepl(":[XY]:", tx2gene$location),]
+
 # read in quant files
 txi <- tximport(quant_files, type="salmon", 
                 tx2gene = tx2gene[,c("transcript_id","gene_id")])
@@ -62,6 +64,9 @@ ddsTxi <- DESeqDataSetFromTximport(txi,
 smallestGroupSize <- 4
 keep <- rowSums(counts(ddsTxi) >= 10) >= smallestGroupSize
 ddsTxi <- ddsTxi[keep,]
+
+# remove sex linked genes
+ddsTxi <- ddsTxi[!rownames(ddsTxi) %in% tx2gene_sex$gene_id,]
 
 ddsTxi <- DESeq(ddsTxi)
 
@@ -270,6 +275,9 @@ results_list <- lapply(contrasts, function(contrast) {
 
 # save the results
 saveRDS(results_list, file=paste0(out_dir, "deg_results.sva.list.RDS"))
+
+write.xlsx(results_list, file=paste0(out_dir, "deg_results.sva.xlsx"),
+        colWidths="auto")
 
 volcano_dir <- paste0(out_dir, "volcano_plots/")
 

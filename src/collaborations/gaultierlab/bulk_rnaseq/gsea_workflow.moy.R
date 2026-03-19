@@ -47,6 +47,7 @@ results_dir <- out_dir
 
 dir.create(results_dir, showWarnings = F)
 
+
 # Calculate GSEA results per cell type -----------------------------------------
 
 gsea_results <- lapply(results_list, function(degs) {
@@ -54,6 +55,8 @@ gsea_results <- lapply(results_list, function(degs) {
   # clean up DEGs
   degs <- degs[!is.na(degs$gene_symbol),]
   degs <- degs[!duplicated(degs$gene_symbol),]
+  
+  # drop sex linked genes
   
   # Create ranked gene list (by log fold change or stat)
   # Important: remove NAs and sort

@@ -53,7 +53,7 @@ fdr_matrix.print[fdr_matrix < 0.05] <- "*"
 fdr_matrix.print[fdr_matrix > 0.05] <- ""
 
 # make some heatmaps
-top_same <- joint_deg[joint_deg$joint_p > 0.92,]$gene_symbol
+top_same <- joint_deg[joint_deg$joint_p > 0.7,]$gene_symbol
 
 subset_fc <- fc_matrix[top_same,]
 subset_fdr <- fdr_matrix.print[top_same,]
@@ -80,7 +80,7 @@ dev.off()
 
 # in OPC not in OL-T3
 
-top_opc <- joint_deg[joint_deg$opc_not_olt3 > 0.92 &
+top_opc <- joint_deg[joint_deg$opc_not_olt3 > 0.9 &
                        abs(joint_deg$log2FoldChange.opc) > 0.5,]$gene_symbol
 
 subset_fc <- fc_matrix[top_opc,]
@@ -108,7 +108,7 @@ dev.off()
 
 # OL +T3
 
-top_olt3 <- joint_deg[joint_deg$olt3_not_opc > 0.92 &
+top_olt3 <- joint_deg[joint_deg$olt3_not_opc > 0.9 &
                        abs(joint_deg$log2FoldChange.olt3) > 0.5,]$gene_symbol
 
 subset_fc <- fc_matrix[top_olt3,]
