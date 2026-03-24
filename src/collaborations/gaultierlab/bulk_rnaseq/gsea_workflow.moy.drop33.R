@@ -39,7 +39,7 @@ total_gene_sets <- list(hallmark=list_convert(hallmark_gene_sets),
 
 # can be changes in the future to account for multiple results
 
-results_file <- "~/Documents/projects/gaultierlab/stephanie_moy/bulkRNASeq/results/deg_workflow/deg_results.sva.list.RDS"
+results_file <- "~/Documents/projects/gaultierlab/stephanie_moy/bulkRNASeq/results/deg_workflow.drop33/deg_results.sva.list.RDS"
 
 results_list <- readRDS(results_file)
 

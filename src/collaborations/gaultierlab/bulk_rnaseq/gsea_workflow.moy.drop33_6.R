@@ -9,7 +9,7 @@ library(cowplot) # combining plots
 # Initial setup ----------------------------------------------------------------
 
 # create output directory for results
-out_dir <- "~/Documents/projects/gaultierlab/stephanie_moy/bulkRNASeq/results/rnaseq.fgsea.drop33/"
+out_dir <- "~/Documents/projects/gaultierlab/stephanie_moy/bulkRNASeq/results/rnaseq.fgsea.drop33_6/"
 dir.create(out_dir, showWarnings = F)
 
 # Load in msigdbr and get gene sets --------------------------------------------
@@ -39,7 +39,7 @@ total_gene_sets <- list(hallmark=list_convert(hallmark_gene_sets),
 
 # can be changes in the future to account for multiple results
 
-results_file <- "~/Documents/projects/gaultierlab/stephanie_moy/bulkRNASeq/results/deg_workflow/deg_results.sva.list.RDS"
+results_file <- "~/Documents/projects/gaultierlab/stephanie_moy/bulkRNASeq/results/deg_workflow.drop33_6/deg_results.list.RDS"
 
 results_list <- readRDS(results_file)
 
