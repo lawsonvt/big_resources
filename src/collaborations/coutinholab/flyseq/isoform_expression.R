@@ -6,6 +6,7 @@ library(data.table)
 library(ggrepel)
 library(reshape2)
 library(betareg)
+library(openxlsx)
 
 out_dir <- "~/Documents/projects/coutinholab/flyseq/results/isoform_expression/"
 
@@ -82,7 +83,11 @@ ggsave(paste0(out_dir, "orion_isoform_fraction.png"), width=4, height=5)
 fit <- betareg(value ~ condition, data=orion_if_long)
 summary(fit)
 
-
+# save to excel file
+write.xlsx(list(tpm=orion_tpm_long,
+     orionb_fraction=orion_if_long),
+     paste0(out_dir, "orion_isoform_expression.xlsx"),
+     colWidths="auto")
 
 
 
