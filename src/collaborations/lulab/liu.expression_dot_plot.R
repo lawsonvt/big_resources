@@ -39,8 +39,13 @@ plot_genes_by_group(cds_subset,
 ggsave(paste0(out_dir, "p2y_genes.gene_expression_dot_plot.png"),
        width=6, height=5)
 
-
-ggsave(paste0(out_dir, "bai1_pathway.gene_expression_dot_plot.png"),
+plot_genes_by_group(cds_subset,
+                    c(p2x_genes,
+                      p2y_genes),
+                    group_cells_by = "new_age",
+                    ordering_type = "none") +
+  labs(x=NULL, y=NULL)
+ggsave(paste0(out_dir, "p2x_p2y_genes.gene_expression_dot_plot.png"),
        width=6, height=5)
-ggsave(paste0(out_dir, "bai1_pathway.gene_expression_dot_plot.svg"),
+ggsave(paste0(out_dir, "p2x_p2y_genes.gene_expression_dot_plot.svg"),
        width=6, height=5)
