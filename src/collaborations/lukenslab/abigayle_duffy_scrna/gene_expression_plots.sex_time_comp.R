@@ -72,4 +72,43 @@ VlnPlot(micro_sub,
   labs(x=NULL)
 ggsave(paste0(out_dir, "mertk_violins.microglia.png"), width=6, height=4)
 
+# trim down further just to P14
+astro_sub <- subset(astro_sub, subset = age == "P14")
+micro_sub <- subset(micro_sub, subset = age == "P14")
+
+
+
+# plot gene lists
+micro_genes <- "Dlgap2, Cntnap4, Dlg2, Sorbs2, Cntn5, Gabra2, Grin2a, Grm8, Cntn4, Faah, Gabrb2, Cntn3, Nlgn1, Nrxn3, Cntnap2, Gabrb1, Cacna1c, Grip1, Grm7, Dlgap1, Adgrl3, Dlgap3, Grm5, Gria1, Shank2, Gria4, Adra1a, Gria3, Nrxn1, Grm1, Cntn6, Scn1a, Gabrb3, Cacng3, Prkaa2, Aprt, Grin3a, Scn3a, Pdgfra, Gria2, Gad2, Rit2, Shank1, Cntn1, Grm3, Nrxn2"
+micro_genes <- trimws(unlist(strsplit(micro_genes, ", ")))
+
+astro_genes <- "Grm7, Dlgap2, Cntn4, Cntnap2, Dlg2, Grm1, Cntn3, Gria1, Grm8, Cacna1c, Cntnap4, Gria4, Cntn5, Cacng3, Gad1"
+astro_genes <- trimws(unlist(strsplit(astro_genes, ", ")))
+
+# loop through
+for (gene in micro_genes) {
+  
+  VlnPlot(micro_sub,
+          features=gene,
+          group.by = "age",
+          split.by = "sex") +
+    labs(x=NULL)
+  ggsave(paste0(out_dir, gene, "_violins.microglia.png"), width=4, height=4)
+  
+}
+
+for (gene in astro_genes) {
+  
+  VlnPlot(astro_sub,
+          features=gene,
+          group.by = "age",
+          split.by = "sex") +
+    labs(x=NULL)
+  ggsave(paste0(out_dir, gene, "_violins.astrocytes.png"), width=4, height=4)
+  
+}
+
+
+
+
 
