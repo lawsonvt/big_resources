@@ -174,7 +174,7 @@ ggplot(micro_meta,
              scales="free_y") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=90, hjust=1))
-ggsave(paste0(pre_dir, "microglia_cluster_counts.sample_bar_plot.png"), width=10, height=8)
+ggsave(paste0(out_dir, "microglia_cluster_counts.sample_bar_plot.png"), width=10, height=8)
 
 ggplot(micro_meta,
        aes(x=condition)) +
@@ -183,29 +183,8 @@ ggplot(micro_meta,
              scales="free_y") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=90, hjust=1))
-ggsave(paste0(pre_dir, "microglia_cluster_counts.condition_bar_plot.png"), width=10, height=8)
+ggsave(paste0(out_dir, "microglia_cluster_counts.condition_bar_plot.png"), width=10, height=8)
 
-# cluster counts
-tcell_meta <- subset_seu@meta.data
-
-ggplot(tcell_meta,
-       aes(x=sample)) +
-  geom_bar(color="black", fill="grey") +
-  facet_wrap(~ tcell_clusters, ncol=6,
-             scales="free_y") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle=90, hjust=1))
-ggsave(paste0(pre_dir, "tcell_cluster_counts.sample_bar_plot.png"), width=10, height=8)
-
-ggplot(tcell_meta,
-       aes(x=condition)) +
-  geom_bar(color="black", fill="grey") +
-  facet_wrap(~ tcell_clusters, ncol=6,
-             scales="free_y") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle=90, hjust=1))
-ggsave(paste0(pre_dir, "tcell_cluster_counts.condition_bar_plot.png"), width=10, height=8)
-# find markers!
 
 clusters <- sort(unique(subset_seu$microglia_clusters))
 
