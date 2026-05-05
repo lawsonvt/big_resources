@@ -7,8 +7,8 @@ library(BiocParallel)
 library(openxlsx)
 library(harmony)
 
-root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
-#root_dir <- "~/projects/lukenslab/ruonan_duan/"
+#root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
+root_dir <- "~/projects/lukenslab/ruonan_duan/"
 
 out_dir <- paste0(root_dir, "results/subclustering_microglia/")
 dir.create(out_dir, showWarnings = F)
