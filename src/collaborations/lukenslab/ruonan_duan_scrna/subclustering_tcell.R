@@ -3,6 +3,10 @@ library(SeuratObject)
 library(ggplot2)
 library(tibble)
 library(openxlsx)
+library(scDblFinder)
+library(BiocParallel)
+library(openxlsx)
+library(harmony)
 
 root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
 #root_dir <- "~/projects/lukenslab/ruonan_duan/"
@@ -56,6 +60,70 @@ DimPlot(subset_seu, reduction="umap.harmony", group.by= "cell_type",
         label=F, split.by = "condition") 
 ggsave(paste0(out_dir, "init_tcell_clusters.condition.umap.png"), width=8, height=5)
 
+# lets do some doublet detection!
+
+# determine the optimal number of dimensions through an elbow plot
+
+subset_seu <- RunPCA(subset_seu, npcs = 50)
+
+# inspect elbow plot
+ElbowPlot(subset_seu, ndims=50) + 
+  labs(title="T Cell Subset") +
+  scale_x_continuous(breaks=seq(0,50,5)) +
+  scale_y_continuous(breaks=seq(0,50,5), limits=c(0,NA))
+ggsave(paste0(out_dir, "tcell_subset.pre_doublet.pca_elbow_plot.png"), width=6, height=5, bg="white")
+
+# 20 dimensions makes sense for this dataset as well
+
+max_pc_dim <- 20
+
+# cluster the harmonized data
+subset_seu <- FindNeighbors(subset_seu, dims = 1:max_pc_dim, reduction = "pca")
+subset_seu <- FindClusters(subset_seu, cluster.name = "tcell_clusters")
+
+
+# set assay to RNA and join layers
+DefaultAssay(subset_seu) <- "RNA"
+subset_seu <- JoinLayers(subset_seu)
+
+subset_seu <- NormalizeData(subset_seu)
+subset_seu <- FindVariableFeatures(subset_seu)
+subset_seu <- ScaleData(subset_seu)
+
+# do some doublet finding
+# run doublet finder
+subset_sce <- as.SingleCellExperiment(subset_seu)
+
+bp <- MulticoreParam(2, RNGseed=1234) # equivalent to set seed, for reproducibility
+subset_sce <- scDblFinder(subset_sce, clusters="tcell_clusters", BPPARAM=bp)
+
+# add doublet calls to seurat object
+
+subset_seu$scDblFinder.class <- subset_sce$scDblFinder.class
+
+VlnPlot(subset_seu, group.by="orig.ident", split.by = "scDblFinder.class",
+        features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), 
+        ncol = 3, pt.size = 0) + theme(legend.position = 'right')
+ggsave(paste0(out_dir, "tcell.doublet_qc_plots.png"), width=9, height=6)
+
+doublet_counts <- as.data.frame(table(subset_seu$scDblFinder.class))
+
+ggplot(doublet_counts, 
+       aes(x=Var1, y=Freq)) +
+  geom_bar(stat="identity", fill="grey", color="black") +
+  geom_text(aes(label=Freq), vjust=-0.4) +
+  theme_bw() +
+  labs(x=NULL, y="Cell Count")
+ggsave(paste0(out_dir, "tcell.doublet_counts.png"), width=4, height=5)
+
+dbl_meta <- as.data.frame(colData(subset_sce))
+
+saveRDS(dbl_meta, file=paste0(out_dir, "tcell.doublet_output.RDS"))
+
+# remove doublets, redo clustering
+subset_seu <- subset(subset_seu, scDblFinder.class == "singlet")
+
+
 # there is going to need to be some filtering, so the first set of plots are going to
 # be put into a pre_filter folder
 
@@ -64,7 +132,12 @@ dir.create(pre_dir, showWarnings = F)
 
 # determine the optimal number of dimensions through an elbow plot
 
+# redo sc transform and harmony
+subset_seu <- SCTransform(subset_seu, vars.to.regress = c("percent.mt"), verbose = F)
+
 subset_seu <- RunPCA(subset_seu, npcs = 50)
+
+subset_seu <- RunHarmony(subset_seu, group.by.vars="sample")
 
 # inspect elbow plot
 ElbowPlot(subset_seu, ndims=50) + 
@@ -125,12 +198,17 @@ ggsave(paste0(pre_dir, "tcell_cluster_counts.condition_bar_plot.png"), width=10,
 
 # try filtering the clump that only belongs to one sample
 
-sample_clump <- c("6","14","18","20")
+sample_clump <- c("3","13","18")
 
 # filter down
 subset_subset_seu <- subset(subset_seu, subset = !tcell_clusters %in% sample_clump)
 
+# redo sc transform and harmony
+subset_subset_seu <- SCTransform(subset_subset_seu, vars.to.regress = c("percent.mt"), verbose = F)
+
 subset_subset_seu <- RunPCA(subset_subset_seu, npcs = 50)
+
+subset_subset_seu <- RunHarmony(subset_subset_seu, group.by.vars="sample")
 
 # inspect elbow plot
 ElbowPlot(subset_subset_seu, ndims=50) + 
