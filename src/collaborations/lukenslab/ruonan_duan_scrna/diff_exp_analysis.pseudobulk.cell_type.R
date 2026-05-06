@@ -186,7 +186,7 @@ volcano_plot_list <-  lapply(names(ko_minus_wt.de_results), function(cell) {
                     max.overlaps = 50) +
     theme_bw() +
     labs(x="Log2 Fold Change", y="-log10(P-Value)", title=cell,
-         subtitle="PS19-KO - PS19-WT")
+         subtitle="KO - WT")
   p1
   ggsave(paste0(volcano_dir, to_snake_case(cell), ".volcano_plot.png"), width=5, height=6)
   
