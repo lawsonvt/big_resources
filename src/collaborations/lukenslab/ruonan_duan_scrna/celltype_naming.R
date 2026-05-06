@@ -105,6 +105,38 @@ ggsave(paste0(out_dir, "celltype_clusters.filtered_umap.by_sample.png"), width=1
 SaveSeuratRds(int_seu, paste0(out_dir, "all_samples.celltype_named.seurat.RDS"))
 
 
+# more plots
+# group the conditions
+metadata <- int_seu@meta.data
+
+metadata$sample <- factor(metadata$orig.ident,
+                          levels=c("X1161_1NEG",
+                                   "X1176-WT1",
+                                   "X1177-WT2",
+                                   "X1162_2Het",
+                                   "X1178-KO1",
+                                   "X1179-KO2"))
+
+metadata$condition <- "WT"
+
+metadata[metadata$sample %in% c("X1162_2Het",
+                                "X1178-KO1",
+                                "X1179-KO2"),]$condition <- "KO"
+metadata$condition <- factor(metadata$condition,
+                             levels=c("WT","KO"))
+
+# add to seurat object
+int_seu$sample <- metadata$sample
+int_seu$condition <- metadata$condition
+
+
+DimPlot(int_seu, reduction = "umap.harmony_filtered",
+        group.by = "cell_type",
+        label=T, split.by="condition") +
+  labs(x="UMAP1",y="UMAP2", title=NULL)
+ggsave(paste0(out_dir, "celltype_clusters.filtered_umap.by_condition.png"), width=16, height=8)
+
+
 
 
 
