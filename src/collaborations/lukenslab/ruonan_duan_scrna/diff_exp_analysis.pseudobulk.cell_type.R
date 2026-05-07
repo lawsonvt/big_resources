@@ -16,7 +16,7 @@ dir.create(out_dir, showWarnings = F)
 
 # read in integrated seurat
 seu_obj <- LoadSeuratRds(paste0(root_dir,
-                                "results/celltype_naming/all_samples.celltype_named.seurat.RDS"))
+                                "results/integrate_subclustering_results/total_samples.post_subclustering.seurat.RDS"))
 
 # group the conditions
 metadata <- seu_obj@meta.data
