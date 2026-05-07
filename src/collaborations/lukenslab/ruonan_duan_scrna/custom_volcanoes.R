@@ -38,9 +38,9 @@ ggplot(subset,
              color="red", linetype=2) +
   geom_vline(xintercept = -0.5,
              color="red", linetype=2) +
-#  geom_point(data=subset_sig,
-#             color="red") +
-  geom_text_repel(data=subset[subset$gene %in% genelist,],
+  geom_point(data=subset[subset$gene %in% genelist,],
+             color="blue") +
+  geom_label_repel(data=subset[subset$gene %in% genelist,],
                   aes(label=gene),
                   color="blue", size=2.5,
                   max.overlaps = 50) +
