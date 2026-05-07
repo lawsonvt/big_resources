@@ -296,5 +296,7 @@ for (data in cluster_markers) {
   
 }
 
+saveRDS(subset_subset_seu@meta.data, paste0(out_dir, "subset_monocyte_macrophage.metadata.RDS"))
+
 SaveSeuratRds(subset_subset_seu, paste0(out_dir, "subset_monocyte_macrophage.seurat.RDS"))
 

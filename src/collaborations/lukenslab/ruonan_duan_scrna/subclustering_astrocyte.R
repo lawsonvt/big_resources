@@ -199,4 +199,6 @@ for (data in cluster_markers) {
   
 }
 
+saveRDS(subset_seu@meta.data, paste0(out_dir, "subset_astrocyte.metadata.RDS"))
+
 SaveSeuratRds(subset_seu, paste0(out_dir, "subset_astrocyte.seurat.RDS"))
