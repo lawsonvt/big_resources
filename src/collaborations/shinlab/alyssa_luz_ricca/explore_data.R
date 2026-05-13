@@ -3,6 +3,8 @@ library(ggplot2)
 library(ggrepel)
 library(cowplot)
 library(dplyr)
+library(ggiraph)
+library(patchwork)
 
 root_dir <- "~/Documents/projects/shinlab/alyssa_luz_ricca/"
 
@@ -149,5 +151,86 @@ export <- list(total=data,
                hair_cell=data[!is.na(data$cell_category) & data$cell_category == "hair cell",])
 
 write.xlsx(export, paste0(out_dir, "categorized_data.xlsx"))
+
+# make an interactive plot?
+
+data <- data[order(data$sig_type),]
+
+p <- ggplot(data,
+       aes(x=log2fc_xirp2_wt,
+           y=log2fc_xirp2_ptprq_wt,
+           color=sig_type,
+           tooltip = Gene.Symbol)) +
+  geom_abline(slope=1, intercept=0, linetype=2, color="grey") +
+  geom_point_interactive(alpha=0.5) +
+  scale_color_manual(values=c("grey",
+                              "blue",
+                              "red",
+                              "purple")) +
+  theme_bw() +
+  labs(x="Log2FC XIRP2 / WT", y="Log2FC (XIRP2/PTPRQ) / WT",
+       color="Adj P < 0.05")
+
+int_p <- girafe(p, width_svg = 7, height_svg = 5)
+htmltools::save_html(int_p, paste0(out_dir, "foldchange_scatter_plot.total_proteins.html"))
+
+p <- ggplot(data,
+       aes(x=log2fc_xirp2_wt,
+           y=log2fc_xirp2_ptprq_wt,
+           color=sig_type,
+           tooltip=Gene.Symbol)) +
+  geom_abline(slope=1, intercept=0, linetype=2, color="grey") +
+  facet_wrap(~ cell_category, ncol=3) +
+  geom_point_interactive(alpha=0.5) +
+  scale_color_manual(values=c("grey",
+                              "blue",
+                              "red",
+                              "purple")) +
+  theme_bw() +
+  labs(x="Log2FC XIRP2 / WT", y="Log2FC (XIRP2/PTPRQ) / WT",
+       color="Adj P < 0.05")
+
+int_p <- girafe(p, width_svg = 12, height_svg = 5)
+
+
+htmltools::save_html(int_p,
+                     paste0(out_dir, "foldchange_scatter_plot.celltype_proteins.html"))
+
+# interactive volcano plots
+
+v1 <- ggplot(data,
+             aes(x=log2fc_xirp2_wt,
+                 y=logp_xirp2_wt,
+                 tooltip=Gene.Symbol,
+                 data_id=Gene.Symbol)) +
+  geom_point_interactive(alpha=0.5) +
+  theme_bw() +
+  geom_hline(yintercept = -log10(0.05), color="red", linetype=2) +
+  labs(title="XIRP2 / WT", x="Log2(Abundance Ratio)", y="-Log10(Adj P-Value)")
+
+v2 <- ggplot(data,
+             aes(x=log2fc_xirp2_ptprq_wt,
+                 y=logp_xirp2_ptprq_wt,
+                 tooltip=Gene.Symbol,
+                 data_id=Gene.Symbol)) +
+  geom_point_interactive(alpha=0.5) +
+  theme_bw() +
+  geom_hline(yintercept = -log10(0.05), color="red", linetype=2) +
+  labs(title="(XIRP2/PTPRQ) / WT", x="Log2(Abundance Ratio)", y="-Log10(Adj P-Value)")
+
+combined_plot <- v1 + v2 + plot_layout(ncol=2)
+
+int_p <- girafe(combined_plot, width_svg=8, height_svg=5)
+
+# Set options for the interactive plot
+int_p <- girafe_options(
+  int_p,
+  opts_hover(css = "fill:cyan;stroke:black;cursor:pointer;"),
+  opts_selection(type = "single", css = "fill:red;stroke:black;")
+)
+
+htmltools::save_html(int_p,
+                     paste0(out_dir, "volcano_plots.html"))
+
 
 
