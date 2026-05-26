@@ -6,11 +6,10 @@ library(sva)
 library(limma)
 library(tibble)
 library(reshape2)
-library(openxlsx)
 
 root_dir <- "~/Documents/projects/sheybanilab/stef_maslova/"
 
-out_dir <- paste0(root_dir, "results/explore_counts/")
+out_dir <- paste0(root_dir, "results/explore_counts.drop_sammples/")
 dir.create(out_dir, showWarnings = F, recursive = T)
 
 
@@ -41,6 +40,15 @@ colnames(counts_mat) <- sapply(colnames(counts_mat), function(x) {
 })
 
 all(colnames(counts_mat) %in% rownames(metadata)) 
+counts_mat <- counts_mat[,rownames(metadata)]
+
+# filter out some samples ...
+
+drop_samples <- c("3L FUS",
+                  "15RR CAR",
+                  "1N Control")
+
+metadata <- metadata[!metadata$Name %in% drop_samples,]
 counts_mat <- counts_mat[,rownames(metadata)]
 
 # Keep genes with at least 10 counts in at least 3 samples
@@ -136,7 +144,7 @@ sv_terms <- paste0("SV", 1:n_sv, collapse = " + ")
 design_formula <- as.formula(paste("~", sv_terms, "+ condition"))
 
 # Update the design
-# design(dds) <- design_formula # no noticeable differences in results, so dont use
+#design(dds) <- design_formula
 
 # create the contrasts
 contrasts <- list("FUS-Control"=c("condition","FUS","Control"),
