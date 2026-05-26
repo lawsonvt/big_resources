@@ -107,6 +107,76 @@ for (age in names(total_results)) {
   
 }
 
+# Make Volcano plots -----------------------------------------------------------
+
+volcano_dir <- paste0(out_dir, "volcano_plots.cell_types/")
+
+dir.create(volcano_dir, showWarnings = F)
+
+
+top_genes <- 25
+
+volcano_plot_list <-  lapply(mixedsort(names(total_results)), function(age) {
+  
+  age_results <- total_results[[age]]
+  
+  lapply(names(age_results), function(cell) {
+    
+    subset <- age_results[[cell]][[1]]
+    
+    subset$log_p <- -log10(subset$p_val)
+    
+    # cap Inf
+    if (any(is.infinite(subset$log_p))) {
+      
+      cap_val <- max(subset[!is.infinite(subset$log_p),]$log_p, na.rm=T)
+      
+      subset[is.infinite(subset$log_p),]$log_p <- cap_val
+      
+    }
+    
+    subset_sig <- subset[subset$p_val_adj < 0.05 &
+                           abs(subset$avg_log2FC) > 0.5,]
+    
+    subset_top <- subset_sig[1:top_genes,]
+    
+    if (any(is.na(subset_top$gene))) {
+      subset_top <- subset_top[!is.na(subset_top$gene),]
+    }
+    
+    logp_thresh <- min(subset_sig$log_p)
+    
+    p1 <- ggplot(subset,
+                 aes(x=avg_log2FC,
+                     y=log_p)) +
+      geom_point(alpha=0.4, color="black") +
+      geom_hline(yintercept = logp_thresh,
+                 color="red", linetype=2) +
+      geom_vline(xintercept = 0.5,
+                 color="red", linetype=2) +
+      geom_vline(xintercept = -0.5,
+                 color="red", linetype=2) +
+      geom_point(data=subset_sig,
+                 color="red") +
+      geom_text_repel(data=subset_top,
+                      aes(label=gene),
+                      color="red", size=2.5,
+                      max.overlaps = 50) +
+      theme_bw() +
+      labs(x="Log2 Fold Change", y="-log10(P-Value)", title=age,
+           subtitle=cell)
+    p1
+    ggsave(paste0(volcano_dir, to_snake_case(age), ".",
+                  to_snake_case(cell), ".volcano_plot.png"), width=5, height=6)
+    
+    return(p1)
+  })
+})
+
+plot_grid(plotlist = c(volcano_plot_list[[1]],
+                       volcano_plot_list[[2]],
+                       volcano_plot_list[[3]]), nrow = 3)
+ggsave(paste0(out_dir, "cell_types.volcanoes.png"), width=7, height=10, bg="white")
 
 
 
