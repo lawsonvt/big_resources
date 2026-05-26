@@ -47,6 +47,49 @@ dotplot_list[[2]]
 plot_grid(plotlist = dotplot_list, nrow = 1)
 ggsave(paste0(out_dir, "astrocyte_microglia_markers.dotplot.png"), width=12, height=9, bg="white")
 
+
+# add in neurons
+
+known_markers <- list("Astrocyte"=c("Slc6a11", "Ntsr2","Htra1","Aqp4"),
+                      "Microglia"=c("Cx3cr1","Ly86","P2ry12",
+                                    "Gpr34","Hexb"),
+                      "Neuron"=c("Snap25","Syt1","Tubb3","Map2"))
+
+dotplot_list <- lapply(names(known_markers), function(cluster_name) {
+  
+  markers <- known_markers[[cluster_name]]
+  
+  DotPlot(int_seu, features = markers) + RotatedAxis() + labs(x=NULL, y=NULL, title=cluster_name) 
+  
+})
+
+dotplot_list[[1]]
+dotplot_list[[2]]
+dotplot_list[[3]]
+
+#plot_grid(plotlist = dotplot_list, nrow = 1)
+#ggsave(paste0(out_dir, "astrocyte_microglia_markers.dotplot.png"), width=12, height=9, bg="white")
+
+# a new neuron list from Abigayle
+
+gene_list <- "Shank2, Nlgn1, Dlgap2, Cntnap4, Sorbs2, Cntn5, Grin2a, Gabrb2, Cntn3, Cntnap2, Grm7, Dlgap1, Adgrl3, Dlgap3, Gria1, Adra1a, Cntn6, Cacng3, Scn3a, Gria2, Gad2, Rit2, Nrxn2, Grm7, Grm8, Cntn5"
+
+gene_list <- unique(trimws(unlist(strsplit(gene_list, ", "))))
+
+
+DotPlot(int_seu, features = gene_list) + RotatedAxis() + labs(x=NULL, y=NULL, title="Neuron Markers")
+ggsave(paste0(out_dir, "neuron_markers.dotplot.png"), width=12, height=9, bg="white")
+
+DotPlot(int_seu, features = gene_list, idents = c("4","22","25","27")) + 
+  RotatedAxis() + labs(x=NULL, y=NULL, title="Neuron Markers")
+ggsave(paste0(out_dir, "neuron_markers.microglia_clusters.dotplot.png"), width=12, height=5, bg="white")
+
+
+DotPlot(int_seu, features = gene_list, idents = c("6","7","10","16")) + 
+  RotatedAxis() + labs(x=NULL, y=NULL, title="Neuron Markers")
+ggsave(paste0(out_dir, "neuron_markers.astrocyte_clusters.dotplot.png"), width=12, height=5, bg="white")
+
+
 # subset and find agnostic markers for each cluster
 
 set.seed(42)

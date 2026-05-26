@@ -108,7 +108,49 @@ for (gene in astro_genes) {
   
 }
 
+# make comparisons with neuron cells
+neuron_genes <- "Shank2, Nlgn1, Dlgap2, Cntnap4, Sorbs2, Cntn5, Grin2a, Gabrb2, Cntn3, Cntnap2, Grm7, Dlgap1, Adgrl3, Dlgap3, Gria1, Adra1a, Cntn6, Cacng3, Scn3a, Gria2, Gad2, Rit2, Nrxn2, Grm7, Grm8, Cntn5"
+neuron_genes <- unique(trimws(unlist(strsplit(neuron_genes, ", "))))
 
+
+neuron_dir <- paste0(out_dir, "neuron_markers/")
+dir.create(neuron_dir, showWarnings=F)
+
+micro_sub_sub <- subset(micro_sub, subset = harmony_clusters != "22")
+
+for (gene in neuron_genes) {
+  
+  p1 <-  VlnPlot(micro_sub,
+                 features=gene,
+                 group.by = "age",
+                 split.by = "sex") +
+    labs(x=NULL, subtitle="All Microglia Clusters")
+  
+  p2 <-  VlnPlot(micro_sub_sub,
+                 features=gene,
+                 group.by = "age",
+                 split.by = "sex") +
+    labs(x=NULL, subtitle="Microglia Clusters without Cluster22")
+  
+  plot_grid(p1, p2)
+  ggsave(paste0(neuron_dir, gene, "_microglia_cluster_comp.png"), width=7, height=4)
+  
+  
+}
+
+neuron_dir <- paste0(out_dir, "neuron_markers_harmony_clusters/")
+dir.create(neuron_dir, showWarnings=F)
+
+
+for (gene in neuron_genes) {
+
+  VlnPlot(micro_sub,
+          features=gene,
+          group.by = "harmony_clusters",
+          split.by = "sex") +
+    labs(x=NULL)
+  ggsave(paste0(neuron_dir, gene, "_cluster_comp.png"), width=7, height=4)
+}
 
 
 
