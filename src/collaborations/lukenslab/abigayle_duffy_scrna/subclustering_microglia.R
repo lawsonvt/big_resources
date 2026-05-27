@@ -35,7 +35,8 @@ seu_obj$sex <- metadata$sex
 seu_obj$age <- metadata$age
 
 # subset down to microglia
-subset_seu <- subset(seu_obj, subset = cell_type_partial == "Microglia")
+#subset_seu <- subset(seu_obj, subset = cell_type_partial == "Microglia")
+subset_seu <- subset(seu_obj, subset = harmony_clusters == "4")
 
 # clean up and free memory
 rm(seu_obj)
@@ -120,7 +121,8 @@ max_pc_dim <- 20
 
 # cluster the harmonized data
 subset_seu <- FindNeighbors(subset_seu, dims = 1:max_pc_dim, reduction = "pca")
-subset_seu <- FindClusters(subset_seu, cluster.name = "microglia_clusters")
+subset_seu <- FindClusters(subset_seu, cluster.name = "microglia_clusters", 
+                           resolution = 0.2)
 
 # create umap
 subset_seu <- RunUMAP(subset_seu, dims = 1:max_pc_dim, reduction="pca", reduction.name="umap.microglia_pca")
@@ -130,9 +132,18 @@ DimPlot(subset_seu, reduction="umap.microglia_pca", group.by= "microglia_cluster
         label=T) 
 ggsave(paste0(out_dir, "microglia_subcluster.umap.png"), width=7, height=5)
 
+DimPlot(subset_seu, reduction="umap.microglia_pca", group.by= "microglia_clusters",
+        label=T, split.by = "sample_id", ncol=2) 
+
+
 
 DimPlot(subset_seu, reduction="umap.microglia_pca", group.by= "harmony_clusters",
         label=T, split.by = "sample_id", ncol=2) 
+
+
+
+DimPlot(subset_seu, reduction="umap.microglia_pca", group.by= "microglia_clusters",
+        label=T, split.by = "age", ncol=3) 
 
 DimPlot(subset_seu, reduction="umap.harmony", group.by= "harmony_clusters",
         label=T, split.by = "sample_id", ncol=2) 
@@ -144,6 +155,6 @@ DimPlot(subset_seu, reduction="umap.harmony", group.by= "harmony_clusters",
 subset_metadata <- subset_seu@meta.data
 
 table(subset_metadata$sample_id,
-      subset_metadata$harmony_clusters)
+      subset_metadata$microglia_clusters)
 
 
