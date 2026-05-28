@@ -149,7 +149,12 @@ metadata <- int_seu@meta.data
 metadata$cell_type_partial <- as.character(metadata$harmony_clusters)
 
 metadata[metadata$harmony_clusters %in% c("6","7","10","16"),]$cell_type_partial <- "Astrocyte"
-metadata[metadata$harmony_clusters %in% c("4","22","25","27"),]$cell_type_partial <- "Microglia"
+#metadata[metadata$harmony_clusters %in% c("4","22","25","27"),]$cell_type_partial <- "Microglia"
+
+# after further analysis, cluster 22 seems to show some neuron contamination
+# so it is not being considered to be a microglia cluster
+
+metadata[metadata$harmony_clusters %in% c("4","25","27"),]$cell_type_partial <- "Microglia"
 
 int_seu$cell_type_partial <- metadata$cell_type_partial
 
