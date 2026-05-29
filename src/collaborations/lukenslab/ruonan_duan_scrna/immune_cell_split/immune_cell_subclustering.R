@@ -158,7 +158,7 @@ ggplot(subset_meta,
   theme(axis.text.x = element_text(angle=90, hjust=1))
 ggsave(paste0(out_dir, "immune_cluster_counts.sample_bar_plot.png"), width=10, height=8)
 
-ggplot(micro_meta,
+ggplot(subset_meta,
        aes(x=condition)) +
   geom_bar(color="black", fill="grey") +
   facet_wrap(~ immune_clusters, ncol=6,
