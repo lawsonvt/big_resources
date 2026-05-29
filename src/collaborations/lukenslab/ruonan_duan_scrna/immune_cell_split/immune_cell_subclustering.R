@@ -45,7 +45,7 @@ subset_clusters <- "0,1,2,3,4,5,6,8,11,12,13,14,16,18,20,21,23,26,28,31,32,33,37
 
 subset_clusters <- unlist(strsplit(subset_clusters, ","))
 
-# subset down to microglia
+# subset down to immune cells
 subset_seu <- subset(seu_obj, subset = harmony_clusters %in% subset_clusters)
 
 # clean up and free memory
@@ -122,7 +122,7 @@ subset_seu <- RunHarmony(subset_seu, group.by.vars="sample")
 
 # inspect elbow plot
 ElbowPlot(subset_seu, ndims=50) + 
-  labs(title="Microglia Subset") +
+  labs(title="Immune Subset") +
   scale_x_continuous(breaks=seq(0,50,5)) +
   scale_y_continuous(breaks=seq(0,50,5), limits=c(0,NA))
 ggsave(paste0(out_dir, "immune_subset.post_doublet.pca_elbow_plot.png"), width=6, height=5, bg="white")
@@ -152,7 +152,7 @@ subset_meta <- subset_seu@meta.data
 ggplot(subset_meta,
        aes(x=sample)) +
   geom_bar(color="black", fill="grey") +
-  facet_wrap(~ microglia_clusters, ncol=6,
+  facet_wrap(~ immune_clusters, ncol=6,
              scales="free_y") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=90, hjust=1))
@@ -161,7 +161,7 @@ ggsave(paste0(out_dir, "immune_cluster_counts.sample_bar_plot.png"), width=10, h
 ggplot(micro_meta,
        aes(x=condition)) +
   geom_bar(color="black", fill="grey") +
-  facet_wrap(~ microglia_clusters, ncol=6,
+  facet_wrap(~ immune_clusters, ncol=6,
              scales="free_y") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=90, hjust=1))
