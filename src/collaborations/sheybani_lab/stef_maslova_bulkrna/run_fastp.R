@@ -1,5 +1,5 @@
 # parameters
-read_dir <- "/project/SheybaniLab/Stefanyda_Maslova/RNA\ Seq/Exp57_D7/SheybaniLab-483044923/BCLConvert_03_12_2026_05_55_30Z-906849967/"
+read_dir <- "/project/SheybaniLab/Stefanyda_Maslova/RNA_Seq/Exp57_D7/SheybaniLab-483044923/BCLConvert_03_12_2026_05_55_30Z-906849967/"
 fastp_location <- "~/fastp"
 
 fastq1_end <- "R1_001.fastq.gz"
