@@ -188,6 +188,9 @@ results_list <- lapply(results_list, function(data) {
 
 write.xlsx(results_list, paste0(out_dir, "deg_results.xlsx"), colWidths="auto")
 
+# save results to RDS
+saveRDS(results_list, file=paste0(out_dir, "deg_results.RDS"))
+
 # make some plots
 
 # Make Volcano plots -----------------------------------------------------------
