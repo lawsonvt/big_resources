@@ -63,6 +63,10 @@ seu_pseudo <- AggregateExpression(
 # Extract the count matrix
 pseudobulk_matrix <- seu_pseudo$RNA
 
+# fix sample names
+colnames(pseudobulk_matrix) <- gsub("\\-1NEG", "_1NEG", colnames(pseudobulk_matrix))
+colnames(pseudobulk_matrix) <- gsub("\\-2Het", "_2Het", colnames(pseudobulk_matrix))
+
 # Extract unique sample-level metadata
 sample_metadata <- metadata %>%
   select(sample, condition) %>%
@@ -122,7 +126,7 @@ ko_minus_wt.de_results <- lapply(cells, function(cell) {
   
   res_df <- as.data.frame(res) %>%
     tibble::rownames_to_column("gene") %>%
-    arrange(padj) %>%
+    arrange(pvalue) %>%
     mutate(cell_type = cell,
            comparison = paste0(condition1, "_m_", condition2))
   
