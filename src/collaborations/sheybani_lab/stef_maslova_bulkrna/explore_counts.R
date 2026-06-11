@@ -91,16 +91,16 @@ pc1_loadings <- sort(pca_vals$rotation[,1], decreasing=T)
 dds_norm <- estimateSizeFactors(dds)
 norm_counts <- counts(dds_norm, normalized = TRUE)
 
-dat <- vst(dds_norm, blind = FALSE)
-dat_matrix <- assay(dat)
+# dat <- vst(dds_norm, blind = FALSE)
+# dat_matrix <- assay(dat)
 
 mod <- model.matrix(~ 0 + condition, colData(dds))
 mod0 <- model.matrix(~1, colData(dds))
 
-n_sv <- num.sv(dat_matrix, mod)
+n_sv <- num.sv(norm_counts, mod)
 
 # Calculate surrogate variables
-svobj <- sva(dat_matrix, mod, mod0, n.sv = n_sv)
+svobj <- svaseq(norm_counts, mod, mod0, n.sv = n_sv)
 
 
 vsd_corrected <- vst(dds, blind = FALSE)
@@ -136,7 +136,9 @@ sv_terms <- paste0("SV", 1:n_sv, collapse = " + ")
 design_formula <- as.formula(paste("~", sv_terms, "+ condition"))
 
 # Update the design
-# design(dds) <- design_formula # no noticeable differences in results, so dont use
+design(dds) <- design_formula # no noticeable differences in results, so dont use
+
+dds <- DESeq(dds)
 
 # create the contrasts
 contrasts <- list("FUS-Control"=c("condition","FUS","Control"),
@@ -172,7 +174,7 @@ names(results_list) <- names(contrasts)
 write.xlsx(results_list, paste0(out_dir, "deg_results.xlsx"), colWidths="auto")
 
 # make some plots
-vsd_counts <- assay(vsd)
+vsd_counts <- assay(vsd_corrected)
 
 vsd_counts_long <- melt(vsd_counts)
 colnames(vsd_counts_long) <- c("gene","sample_id","value")
