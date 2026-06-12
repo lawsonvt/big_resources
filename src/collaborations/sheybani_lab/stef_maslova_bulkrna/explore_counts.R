@@ -173,6 +173,10 @@ names(results_list) <- names(contrasts)
 
 write.xlsx(results_list, paste0(out_dir, "deg_results.xlsx"), colWidths="auto")
 
+
+
+
+
 # make some plots
 vsd_counts <- assay(vsd_corrected)
 

@@ -9,7 +9,7 @@ library(cowplot) # combining plots
 # Initial setup ----------------------------------------------------------------
 
 # create output directory for results
-out_dir <- "~/Documents/projects/sheybanilab/stef_maslova/results/gsea_workflow.drop_20rr/"
+out_dir <- "~/Documents/projects/sheybanilab/stef_maslova/results/gsea_workflow.salmon/"
 dir.create(out_dir, showWarnings = F)
 
 # Load in msigdbr and get gene sets --------------------------------------------
@@ -39,7 +39,7 @@ total_gene_sets <- list(hallmark=list_convert(hallmark_gene_sets),
 
 # can be changes in the future to account for multiple results
 
-results_file <- "~/Documents/projects/sheybanilab/stef_maslova/results/salmon_deg_analysis.drop_20rr/deg_results.RDS"
+results_file <- "~/Documents/projects/sheybanilab/stef_maslova/results/salmon_deg_analysis/deg_results.RDS"
 
 results_list <- readRDS(results_file)
 

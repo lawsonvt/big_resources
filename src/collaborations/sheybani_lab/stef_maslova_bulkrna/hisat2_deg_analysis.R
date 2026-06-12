@@ -1,20 +1,18 @@
 library(DESeq2)
-library(tximport)
 library(ggplot2)
-library(openxlsx)
-library(data.table)
-library(ggrepel)
 library(readxl)
+library(ggrepel)
 library(sva)
 library(limma)
 library(tibble)
 library(reshape2)
+library(openxlsx)
 library(snakecase)
 library(cowplot)
 
 root_dir <- "~/Documents/projects/sheybanilab/stef_maslova/"
 
-out_dir <- paste0(root_dir, "results/salmon_deg_analysis/")
+out_dir <- paste0(root_dir, "results/hisat2_deg_analysis/")
 dir.create(out_dir, showWarnings = F, recursive = T)
 
 # read in data
@@ -27,48 +25,41 @@ rownames(metadata) <- metadata$sample_id
 metadata$condition <- factor(metadata$condition,
                              levels=unique(metadata$condition))
 
-# get quant files
-quant_files <- list.files(paste0(root_dir, "quants/"),
-                          "quant.sf",
-                          recursive=T, full.names = T)
 
-names(quant_files) <- sapply(quant_files, function(x) {
-  
-  dirs <- unlist(strsplit(dirname(x), "\\/"))
-  
-  sample_number <- as.numeric(unlist(strsplit(last(dirs), "\\-"))[1])
-  
-  return(paste0("Mouse_", sample_number))
-  
+counts <- read.delim(paste0(root_dir, "D7_RNA_Seq/countsAllStef.txt"), comment.char = "#")
+
+# clean up counts
+rownames(counts) <- counts$Geneid
+
+# split it up
+gene_xref <- counts[,1:6]
+
+counts_mat <- counts[,7:18]
+
+# fix column names
+colnames(counts_mat) <- sapply(colnames(counts_mat), function(x) {
+  unlist(strsplit(x, "\\."))[6]
 })
 
-# ensure that files and metadata have same order
-all(names(quant_files) %in% rownames(metadata))
-all(rownames(metadata) %in% names(quant_files) )
+all(colnames(counts_mat) %in% rownames(metadata)) 
+counts_mat <- counts_mat[,rownames(metadata)]
 
-metadata <- metadata[names(quant_files),]
-
-# get tx2gene
-tx2gene <- read.csv("~/Documents/projects/gaultierlab/sam_wachamo/bulkRNASeq/Mus_musculus.GRCm39.transcript2gene.csv")
-
-# read in quant files
-txi <- tximport(quant_files, type="salmon", 
-                tx2gene = tx2gene[,c("transcript_id","gene_id")])
+# Keep genes with at least 10 counts in at least 3 samples
+keep <- rowSums(counts_mat >= 10) >= 3
+counts_mat <- counts_mat[keep, ]
 
 # create DESeq object
-ddsTxi <- DESeqDataSetFromTximport(txi,
-                                   colData = metadata,
-                                   design = ~ condition)
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_mat,
+  colData = metadata,
+  design = ~ condition
+)
 
-# pre filter counts data (for plotting purposes)
-smallestGroupSize <- 3
-keep <- rowSums(counts(ddsTxi) >= 10) >= smallestGroupSize
-ddsTxi <- ddsTxi[keep,]
-
-ddsTxi <- DESeq(ddsTxi)
+# Run DESeq2
+dds <- DESeq(dds)
 
 # QC plots
-vsd <- vst(ddsTxi)
+vsd <- vst(dds)
 
 pcaData <- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
 percentVar <- round(100 * attr(pcaData, "percentVar"))
@@ -85,15 +76,11 @@ ggsave(paste0(out_dir, "pca_plot.png"), width=6, height=5)
 # try out sva
 
 # Get normalized counts for SVA
-dds_norm <- estimateSizeFactors(ddsTxi)
+dds_norm <- estimateSizeFactors(dds)
 norm_counts <- counts(dds_norm, normalized = TRUE)
 
-
-# dat <- vst(dds_norm, blind = FALSE)
-# dat_matrix <- assay(dat)
-
-mod <- model.matrix(~ 0 + condition, colData(ddsTxi))
-mod0 <- model.matrix(~1, colData(ddsTxi))
+mod <- model.matrix(~ 0 + condition, colData(dds))
+mod0 <- model.matrix(~1, colData(dds))
 
 n_sv <- num.sv(norm_counts, mod)
 
@@ -101,7 +88,7 @@ n_sv <- num.sv(norm_counts, mod)
 svobj <- svaseq(norm_counts, mod, mod0, n.sv = n_sv)
 
 
-vsd_corrected <- vst(ddsTxi, blind = FALSE)
+vsd_corrected <- vst(dds, blind = FALSE)
 assay(vsd_corrected) <- limma::removeBatchEffect(
   assay(vsd_corrected),
   covariates = svobj$sv,
@@ -120,13 +107,11 @@ ggplot(pcaData_after, aes(x = PC1, y = PC2, color = condition)) +
   theme_bw()
 ggsave(paste0(out_dir, "pca_sva_plot.png"), width=6, height=5)
 
-# SVA seems to show a difference ...
-
 # try doing differential expression analysis
 
 # Add SVs to colData
 for (i in 1:n_sv) {
-  colData(ddsTxi)[, paste0("SV", i)] <- svobj$sv[, i]
+  colData(dds)[, paste0("SV", i)] <- svobj$sv[, i]
 }
 
 # Create new design formula including SVs
@@ -136,9 +121,9 @@ sv_terms <- paste0("SV", 1:n_sv, collapse = " + ")
 design_formula <- as.formula(paste("~", sv_terms, "+ condition"))
 
 # Update the design
-design(ddsTxi) <- design_formula 
+design(dds) <- design_formula # no noticeable differences in results, so dont use
 
-ddsTxi <- DESeq(ddsTxi)
+dds <- DESeq(dds)
 
 # create the contrasts
 contrasts <- list("FUS-Control"=c("condition","FUS","Control"),
@@ -151,16 +136,14 @@ results_list <- lapply(contrasts, function(contrast) {
                contrast[3]))
   
   # calculate results
-  res <- results(ddsTxi, contrast) 
+  res <- results(dds, contrast) 
   
   res <- as.data.frame(res)
   # remove NAs
   res <- res[!is.na(res$padj),]
   
   # merge in gene names
-  res <- rownames_to_column(res, var = "gene_id")
-  res <- merge(unique(tx2gene[,c("gene_id","gene_symbol")]),
-               res, by="gene_id")
+  res <- rownames_to_column(res, var = "gene")
   
   # sort the data
   res <- res[order(res$pvalue),]
@@ -180,13 +163,11 @@ results_list <- lapply(results_list, function(data) {
   
 })
 
-
 write.xlsx(results_list, paste0(out_dir, "deg_results.xlsx"), colWidths="auto")
 
 # save results to RDS
 saveRDS(results_list, file=paste0(out_dir, "deg_results.RDS"))
 
-# make some plots
 
 # Make Volcano plots -----------------------------------------------------------
 
@@ -215,13 +196,13 @@ volcano_plot_list <-  lapply(names(results_list), function(contrast) {
   if (any(subset$log2FoldChange < -cap)) {
     subset[subset$log2FoldChange < -cap,]$log2FoldChange <- -cap 
   }
-    
+  
   subset_sig <- subset[subset$padj < 0.1,]
   
   subset_top <- subset_sig[1:top_genes,]
   
-  if (any(is.na(subset_top$gene_symbol))) {
-    subset_top <- subset_top[!is.na(subset_top$gene_symbol),]
+  if (any(is.na(subset_top$gene))) {
+    subset_top <- subset_top[!is.na(subset_top$gene),]
   }
   
   logp_thresh <- min(subset_sig$log_p)
@@ -239,7 +220,7 @@ volcano_plot_list <-  lapply(names(results_list), function(contrast) {
     geom_point(data=subset_sig,
                color="red") +
     geom_text_repel(data=subset_top,
-                    aes(label=gene_symbol),
+                    aes(label=gene),
                     color="red", size=2.5,
                     max.overlaps = 50) +
     theme_bw() +
@@ -255,88 +236,64 @@ plot_grid(plotlist = volcano_plot_list, nrow = 1)
 ggsave(paste0(out_dir, "contrast.volcanoes.png"), width=10, height=5, bg="white")
 
 
-# look at some oddities
-na_gene_list <- c("ENSMUSG00000000001.5",
-               "ENSMUSG00000000028.16",
-               "ENSMUSG00000000037.18",
-               "ENSMUSG00000000056.8",
-               "ENSMUSG00000000058.7")
-
 # make some plots
 vsd_counts <- assay(vsd_corrected)
 
 vsd_counts_long <- melt(vsd_counts)
-colnames(vsd_counts_long) <- c("gene_id","sample_id","value")
+colnames(vsd_counts_long) <- c("gene","sample_id","value")
 
-vsd_counts_long$gene_id <- as.character(vsd_counts_long$gene_id)
+vsd_counts_long$gene <- as.character(vsd_counts_long$gene)
 
 
 vsd_counts_long <- merge(vsd_counts_long,
                          metadata, by="sample_id")
 
-vsd_counts_long <- merge(vsd_counts_long,
-                         unique(tx2gene[,c("gene_id","gene_symbol")]),
-                         by="gene_id")
+top_gene_list <- results_list$`CAR_FUS-Control`$gene[1:9]
 
-ggplot(vsd_counts_long[vsd_counts_long$gene_id %in% na_gene_list,],
+ggplot(vsd_counts_long[vsd_counts_long$gene %in% top_gene_list,],
        aes(x=condition,
            y=value,
            color=condition)) +
   geom_boxplot(outlier.shape = NA, width = 0.5) +
   geom_point(size=3) +
   theme_bw() +
-  facet_wrap(~ gene_symbol, ncol=3, scales="free_y") +
+  facet_wrap(~ gene, ncol=3, scales="free_y") +
   geom_text_repel(aes(label=Name), size=3) +
   guides(color="none") +
   labs(x=NULL, y="Normalized Expression")
-#ggsave(paste0(out_dir, "fdr_na_plots.car_fus.png"), width=9, height=6)
-
-top_gene_list <- results_list$`CAR_FUS-Control`$gene_id[1:2]
-
-ggplot(vsd_counts_long[vsd_counts_long$gene_id %in% top_gene_list,],
-       aes(x=condition,
-           y=value,
-           color=condition)) +
-  geom_boxplot(outlier.shape = NA, width = 0.5) +
-  geom_point(size=3) +
-  theme_bw() +
-  facet_wrap(~ gene_symbol, ncol=3, scales="free_y") +
-  geom_text_repel(aes(label=Name), size=3) +
-  guides(color="none") +
-  labs(x=NULL, y="Normalized Expression")
-ggsave(paste0(out_dir, "top_fdr_plots.car_fus.png"), width=6, height=3)
+ggsave(paste0(out_dir, "top_fdr_plots.car_fus.png"), width=8, height=7)
 
 # same plots for other comparisons
-top_gene_list <- results_list$`FUS-Control`$gene_id[1:9]
+top_gene_list <- results_list$`FUS-Control`$gene[1:4]
 
-ggplot(vsd_counts_long[vsd_counts_long$gene_id %in% top_gene_list,],
+ggplot(vsd_counts_long[vsd_counts_long$gene %in% top_gene_list,],
        aes(x=condition,
            y=value,
            color=condition)) +
   geom_boxplot(outlier.shape = NA, width = 0.5) +
   geom_point(size=3) +
   theme_bw() +
-  facet_wrap(~ gene_symbol, ncol=3, scales="free_y") +
+  facet_wrap(~ gene, ncol=2, scales="free_y") +
   geom_text_repel(aes(label=Name), size=3) +
   guides(color="none") +
   labs(x=NULL, y="Normalized Expression")
-ggsave(paste0(out_dir, "top_fdr_plots.fus.png"), width=8, height=7)
+ggsave(paste0(out_dir, "top_fdr_plots.fus.png"), width=6, height=5)
 
 
-top_gene_list <- results_list$`CAR-Control`$gene_id[1:4]
+top_gene_list <- results_list$`CAR-Control`$gene[1:3]
 
-ggplot(vsd_counts_long[vsd_counts_long$gene_id %in% top_gene_list,],
+ggplot(vsd_counts_long[vsd_counts_long$gene %in% top_gene_list,],
        aes(x=condition,
            y=value,
            color=condition)) +
   geom_boxplot(outlier.shape = NA, width = 0.5) +
   geom_point(size=3) +
   theme_bw() +
-  facet_wrap(~ gene_symbol, ncol=2, scales="free_y") +
+  facet_wrap(~ gene, ncol=3, scales="free_y") +
   geom_text_repel(aes(label=Name), size=3) +
   guides(color="none") +
   labs(x=NULL, y="Normalized Expression")
-ggsave(paste0(out_dir, "top_fdr_plots.car.png"), width=6, height=5)
+ggsave(paste0(out_dir, "top_fdr_plots.car.png"), width=8, height=3)
 
 
 
