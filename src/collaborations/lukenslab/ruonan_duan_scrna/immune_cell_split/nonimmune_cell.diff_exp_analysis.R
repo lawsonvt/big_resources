@@ -27,10 +27,14 @@ levels(metadata$nonimmune_clusters) <- paste0("cluster", levels(metadata$nonimmu
 seu_obj$nonimmune_clusters <- metadata$nonimmune_clusters
 
 # clusters to analyze
-clusters <- c("cluster2",
-              "cluster10",
-              "cluster19",
-              "cluster20")
+# clusters <- c("cluster2",
+#               "cluster10",
+#               "cluster18",
+#               "cluster19",
+#               "cluster20")
+
+# just do all of them
+clusters <- levels(seu_obj$nonimmune_clusters)[1:21]
 
 # set assay to RNA and join layers
 DefaultAssay(seu_obj) <- "RNA"
@@ -183,8 +187,8 @@ volcano_plot_list <-  lapply(names(ko_minus_wt.de_results), function(cluster) {
 })
 
 
-plot_grid(plotlist = volcano_plot_list, nrow = 2)
-ggsave(paste0(out_dir, "cell_types.volcanoes.png"), width=8, height=8, bg="white")
+plot_grid(plotlist = volcano_plot_list, nrow = 3)
+ggsave(paste0(out_dir, "cluster_deg.volcanoes.png"), width=16, height=10, bg="white")
 
 
 
