@@ -2,8 +2,8 @@ library(Seurat)
 library(openxlsx)
 library(ggplot2)
 
-root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
-#root_dir <- "~/projects/lukenslab/ruonan_duan/"
+#root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
+root_dir <- "~/projects/lukenslab/ruonan_duan/"
 
 out_dir <- paste0(root_dir, "results/cassia_annotate/find_all_markers.total/")
 dir.create(out_dir, showWarnings = F, recursive = T)
