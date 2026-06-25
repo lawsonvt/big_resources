@@ -66,4 +66,15 @@ runCASSIA_score_batch(
 
 # this was $1.50
 
+# OLLAMA
+
+runCASSIA_batch(
+  marker = all_markers,                # Marker data from FindAllMarkers
+  output_name = paste0(out_dir, "results_ollama_gpt"),   # Output file name
+  tissue = "Brain",                             # Tissue type
+  species = "Mouse",                           # Species
+  provider = "http://localhost:11434/v1",
+  model = "gpt-oss:20b",             # API provider
+  max_workers = 4                              # Number of parallel workers
+)
 
