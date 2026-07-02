@@ -82,6 +82,22 @@ ggsave(paste0(out_dir, "integrated_seurat.umap.png"), width=14, height=6)
 # save the integrated seurat
 SaveSeuratRds(seurat_merged, paste0(out_dir, "all_samples.integrated_seurat.RDS"))
 
+seurat_merged <- readRDS(paste0(out_dir, "all_samples.integrated_seurat.RDS"))
+
+# make some UMAPS
+DimPlot(seurat_merged, reduction="umap.harmony", group.by= "harmony_clusters", label=T)
+ggsave(paste0(out_dir, "total_integrated_cell_umap.png"), width=7, height=5)
+
+DimPlot(seurat_merged, reduction="umap.harmony", group.by= "harmony_clusters", label=T,
+        split.by = "orig.ident", ncol=4)
+ggsave(paste0(out_dir, "total_integrated_cell_umap.per_sample.png"), width=12, height=10)
+
+
+seurat_merged$condition <- gsub("\\-[0-9]+", "", seurat_merged$orig.ident)
+
+DimPlot(seurat_merged, reduction="umap.harmony", group.by= "harmony_clusters", label=T,
+        split.by = "condition", ncol=2)
+ggsave(paste0(out_dir, "total_integrated_cell_umap.per_condition.png"), width=10, height=8)
 
 # plots of cluster breakdowns
 

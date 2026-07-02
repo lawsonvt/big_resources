@@ -66,7 +66,8 @@ ggsave(paste0(out_dir, "endothelial_cell_umap.png"), width=6, height=5)
 # exam the genes of interest
 group1_genes <- c("Il1r1",
                 "Tnfrsf1a", 
-                "Ifngr1")
+                "Ifngr1",
+                "Ifngr2")
 
 group1_genes %in% rownames(endo_seu)
 
@@ -137,4 +138,71 @@ DotPlot(endo_seu, features=unique(top_total_markers$gene)) + RotatedAxis() +
 ggsave(paste0(out_dir, "top_endothelial_cluster_markers.all_clusters.png"), width=12, height=5,
        bg="white")
 
+# split things by condition
+
+endo_seu$condition <- gsub("\\-[0-9]", "", endo_seu$orig.ident)
+
+# subset even more!
+
+endo_seu_ae <- subset(endo_seu, subset = condition %in% c("Adult", "EAE"))
+
+# further splits
+endo_seu_adult <- subset(endo_seu, subset = condition == "Adult")
+endo_seu_eae <- subset(endo_seu, subset = condition == "EAE")
+
+
+# group 1 plots
+
+FeaturePlot(endo_seu_ae, features = group1_genes, reduction="umap.harmony", split.by = "condition")
+ggsave(paste0(out_dir, "group1_umap.condition_split.png"), width=6, height=8)
+
+
+VlnPlot(endo_seu_ae, features = group1_genes, split.by = "condition", ncol=1)
+ggsave(paste0(out_dir, "group1_violin_plots.condition_split.png"), width=6, height=10)
+
+DotPlot(endo_seu_ae, features=group1_genes, split.by = "condition") + labs(x=NULL, y=NULL)
+ggsave(paste0(out_dir, "group1_dot_plots.condition_split.png"), width=6, height=6, bg="white")
+
+DotPlot(endo_seu_adult, features=group1_genes) + labs(x=NULL, y=NULL, title="Adult")
+DotPlot(endo_seu_eae, features = group1_genes) + labs(x=NULL, y=NULL, title="EAE")
+
+# group 2 plots
+
+FeaturePlot(endo_seu_ae, features = group2_genes, reduction="umap.harmony", split.by = "condition")
+ggsave(paste0(out_dir, "group2_umap.condition_split.png"), width=6, height=8)
+
+
+VlnPlot(endo_seu_ae, features = group2_genes, split.by = "condition", ncol=1)
+ggsave(paste0(out_dir, "group2_violin_plots.condition_split.png"), width=6, height=10)
+
+DotPlot(endo_seu_ae, features=group2_genes, split.by = "condition") + labs(x=NULL, y=NULL)
+ggsave(paste0(out_dir, "group2_dot_plots.condition_split.png"), width=6, height=6, bg="white")
+
+# group 3!
+group3_genes <- c("Stat1","Ciita", "Icam1", "Vcam1")
+
+group3_genes %in% rownames(endo_seu)
+
+VlnPlot(endo_seu, features = group3_genes, ncol = 2)
+ggsave(paste0(out_dir, "group3_violin_plots.png"), width=7, height=7)
+
+DotPlot(endo_seu, features=group3_genes) + labs(x=NULL, y=NULL)
+ggsave(paste0(out_dir, "group3_dot_plots.png"), width=6, height=5, bg="white")
+
+
+FeaturePlot(endo_seu, features = group3_genes, reduction="umap.harmony")
+ggsave(paste0(out_dir, "group3_umap.png"), width=6, height=5)
+
+
+# split
+
+FeaturePlot(endo_seu_ae, features = group3_genes, reduction="umap.harmony", split.by = "condition")
+ggsave(paste0(out_dir, "group3_umap.condition_split.png"), width=6, height=8)
+
+
+VlnPlot(endo_seu_ae, features = group3_genes, split.by = "condition", ncol=1)
+ggsave(paste0(out_dir, "group3_violin_plots.condition_split.png"), width=6, height=10)
+
+DotPlot(endo_seu_ae, features=group3_genes, split.by = "condition") + labs(x=NULL, y=NULL)
+ggsave(paste0(out_dir, "group3_dot_plots.condition_split.png"), width=6, height=6, bg="white")
 
