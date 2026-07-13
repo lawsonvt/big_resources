@@ -62,7 +62,8 @@ for (result in merged_results) {
     theme_bw() +
     labs(x="Log2FC in Total Analysis",
          y="Log2FC in Direct Comparison Analysis",
-         color=NULL) 
+         color=NULL,
+         title=comparison) 
   ggsave(paste0(out_dir, to_snake_case(comparison), ".scatter_fc.png"), width=7, height=5)
   
   

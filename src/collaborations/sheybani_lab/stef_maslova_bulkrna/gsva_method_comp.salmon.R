@@ -187,7 +187,7 @@ h_total <- Heatmap(reactome_total_nes,
                    column_title = "Total Samples",
                    cluster_columns = F,row_names_gp = gpar(fontsize = 8))
 
-pdf(paste0(out_dir, "top_reactome_pathways.total_direct.pdf"), width=12, height=6)
+pdf(paste0(out_dir, "top_immune_reactome_pathways.total_direct.pdf"), width=12, height=6)
 draw(h_direct + h_total, heatmap_legend_side = "left")
 dev.off()
 
@@ -257,7 +257,7 @@ h_total <- Heatmap(gobp_total_nes,
                    column_title = "Total Samples",
                    cluster_columns = F,row_names_gp = gpar(fontsize = 8))
 
-pdf(paste0(out_dir, "top_gobp_pathways.total_direct.pdf"), width=12, height=6)
+pdf(paste0(out_dir, "top_immune_gobp_pathways.total_direct.pdf"), width=12, height=6)
 draw(h_direct + h_total, heatmap_legend_side = "left")
 dev.off()
 
@@ -468,5 +468,64 @@ pdf(paste0(out_dir, "top_num_gobp_pathways.total_direct.pdf"), width=12, height=
 draw(h_direct + h_total, heatmap_legend_side = "left")
 dev.off()
 
+# wiki pathways?
+
+
+top_wiki <- combined_results_df[combined_results_df$pathway_db == "wikipathways" &
+                                  (combined_results_df$padj.total < max_fdr |
+                                     combined_results_df$padj.direct < max_fdr),]
+
+
+top_wiki_pathways <- unique(top_wiki$pathway)
+
+wiki_direct_nes <- acast(combined_results_df[combined_results_df$pathway %in% top_wiki_pathways,],
+                         pathway ~ comparison, value.var="NES.direct")
+wiki_direct_fdr <- acast(combined_results_df[combined_results_df$pathway %in% top_wiki_pathways,],
+                         pathway ~ comparison, value.var="padj.direct")
+wiki_direct_fdr_print <- wiki_direct_fdr
+
+wiki_direct_fdr_print[wiki_direct_fdr < max_fdr] <- "*"
+wiki_direct_fdr_print[wiki_direct_fdr > max_fdr] <- ""
+
+wiki_total_nes <- acast(combined_results_df[combined_results_df$pathway %in% top_wiki_pathways,],
+                        pathway ~ comparison, value.var="NES.total")
+wiki_total_fdr <- acast(combined_results_df[combined_results_df$pathway %in% top_wiki_pathways,],
+                        pathway ~ comparison, value.var="padj.total")
+wiki_total_fdr_print <- wiki_total_fdr
+
+wiki_total_fdr_print[wiki_total_fdr < max_fdr] <- "*"
+wiki_total_fdr_print[wiki_total_fdr > max_fdr] <- ""
+
+column_order <- c("CAR-Control",
+                  "FUS-Control",
+                  "CAR_FUS-Control")
+
+wiki_direct_nes <- wiki_direct_nes[,column_order]
+wiki_direct_fdr_print <- wiki_direct_fdr_print[,column_order]
+
+h_direct <- Heatmap(wiki_direct_nes,
+                    col=colorRamp2(c(-2,0,2), c("blue","white","red")),
+                    cell_fun = function(j, i, x, y, w, h, col) {
+                      grid.text(wiki_direct_fdr_print[i,j], x, y)
+                    }, name="NES",
+                    width= unit(5, "cm"),
+                    column_title = "Direct Comparison",
+                    cluster_columns = F,row_names_gp = gpar(fontsize = 8))
+
+wiki_total_nes <- wiki_total_nes[,column_order]
+wiki_total_fdr_print <- wiki_total_fdr_print[,column_order]
+
+h_total <- Heatmap(wiki_total_nes,
+                   col=colorRamp2(c(-2,0,2), c("blue","white","red")),
+                   cell_fun = function(j, i, x, y, w, h, col) {
+                     grid.text(wiki_total_fdr_print[i,j], x, y)
+                   }, name="NES",
+                   width = unit(5, "cm"),
+                   column_title = "Total Samples",
+                   cluster_columns = F,row_names_gp = gpar(fontsize = 8))
+
+pdf(paste0(out_dir, "top_wiki_pathways.total_direct.pdf"), width=12, height=9)
+draw(h_direct + h_total, heatmap_legend_side = "left")
+dev.off()
 
 
