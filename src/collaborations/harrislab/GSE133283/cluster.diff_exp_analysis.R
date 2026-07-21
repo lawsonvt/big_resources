@@ -32,7 +32,7 @@ levels(metadata$harmony_clusters) <- paste0("cluster", levels(metadata$harmony_c
 seu_obj$harmony_clusters <- metadata$harmony_clusters
 
 seu_obj$sample_id <- metadata$sample_id
-seu_obj$condition <- metadata$sample_id
+seu_obj$condition <- metadata$condition
 
 # clusters to analyze
 # clusters <- c("cluster2",
