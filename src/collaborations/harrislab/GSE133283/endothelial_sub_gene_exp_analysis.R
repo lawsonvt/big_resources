@@ -34,14 +34,25 @@ ggsave(paste0(out_dir, "group1_violin_plots.png"), width=9, height=5)
 DotPlot(endo_seu, features=group1_genes) + labs(x=NULL, y=NULL)
 ggsave(paste0(out_dir, "group1_dot_plots.png"), width=6, height=5, bg="white")
 
+# no expression for IL1rap, drop from remaining plots
 
-FeaturePlot(endo_seu, features = group1_genes, reduction="umap.endothelial_pca", ncol=3)
+group1_genes <- group1_genes[group1_genes != "Il1rap"]
+
+FeaturePlot(endo_seu, features = group1_genes, reduction="umap.endothelial_pca", ncol=2)
 ggsave(paste0(out_dir, "group1_umap.png"), width=12, height=8)
 
 FeaturePlot(endo_seu, features = group1_genes, 
             reduction = "umap.endothelial_pca",
             split.by="condition")
-ggsave(paste0(out_dir, "group1_umap.per_condition.png"), width=12, height=14)
+ggsave(paste0(out_dir, "group1_umap.per_condition.png"), width=12, height=12)
+
+VlnPlot(endo_seu, features = "Il1r1", split.by = "condition")
+ggsave(paste0(out_dir, "il1r1_violin_plot.png"), width=8, height=4)
+
+FeaturePlot(endo_seu, features = "Il1r1", 
+            reduction = "umap.endothelial_pca",
+            split.by="condition")
+ggsave(paste0(out_dir, "il1r1_umap_plot.png"), width=14, height=4)
 
 # look at the next set of genes of interest
 group2_genes <- c("B2m",
@@ -60,7 +71,7 @@ ggsave(paste0(out_dir, "group2_dot_plots.png"), width=6, height=5, bg="white")
 
 
 FeaturePlot(endo_seu, features = group2_genes, reduction="umap.endothelial_pca", ncol=2)
-ggsave(paste0(out_dir, "group2_umap.png"), width=8, height=7)
+ggsave(paste0(out_dir, "group2_umap.png"), width=12, height=8)
 
 FeaturePlot(endo_seu, features = group2_genes, 
             reduction = "umap.endothelial_pca",
@@ -80,7 +91,7 @@ ggsave(paste0(out_dir, "group3_dot_plots.png"), width=6, height=5, bg="white")
 
 
 FeaturePlot(endo_seu, features = group3_genes, reduction="umap.endothelial_pca", ncol=2)
-ggsave(paste0(out_dir, "group3_umap.png"), width=8, height=7)
+ggsave(paste0(out_dir, "group3_umap.png"), width=12, height=8)
 
 FeaturePlot(endo_seu, features = group3_genes, 
             reduction = "umap.endothelial_pca",
