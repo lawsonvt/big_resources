@@ -11,7 +11,7 @@ dir.create(out_dir, showWarnings = F, recursive = T)
 
 # read in integrated seurat
 int_seu <- LoadSeuratRds(paste0(root_dir,
-                                "results/integrate_seurat_samples/all_samples.integrated_seurat.RDS"))
+                                "results/celltype_naming/all_samples.celltype_named.seurat.RDS"))
 
 Idents(int_seu) <- "harmony_clusters"
 
