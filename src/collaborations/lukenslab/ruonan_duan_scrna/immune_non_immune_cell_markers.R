@@ -310,3 +310,8 @@ plot_list <- lapply(markers, function(gene) {
 plot_grid(plotlist = plot_list, ncol=2)
 ggsave(paste0(out_dir, to_snake_case(cell_type), ".markers_expr_umap.png"),
        width=12, height=5, bg="white")
+
+
+FeaturePlot(int_seu, features = "Matn4", reduction="umap.harmony_filtered")
+FeaturePlot(int_seu, features = "Enpp6", reduction="umap.harmony_filtered")
+
