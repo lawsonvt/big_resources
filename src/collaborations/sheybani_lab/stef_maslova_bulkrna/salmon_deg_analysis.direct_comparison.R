@@ -51,17 +51,25 @@ metadata <- metadata[names(quant_files),]
 
 # loop through treatments, comparing each to control
 
-treatments <- levels(metadata$condition)
-treatments <- treatments[!grepl("Control", treatments)]
+# treatments <- levels(metadata$condition)
+# treatments <- treatments[!grepl("Control", treatments)]
 
-results_list <- lapply(treatments, function(treatment) {
+# create the contrasts
+contrasts <- list("FUS-Control"=c("condition","FUS","Control"),
+                  "CAR-Control"=c("condition","CAR","Control"),
+                  "CAR_FUS-Control"=c("condition","CAR_FUS","Control"),
+                  "CAR_FUS-CAR"=c("condition","CAR_FUS","CAR"),
+                  "CAR_FUS-FUS"=c("condition","CAR_FUS","FUS"),
+                  "CAR-FUS"=c("condition","CAR","FUS"))
+
+results_list <- lapply(contrasts, function(contrast) {
   
   # filter down
-  metadata <- metadata[metadata$condition %in% c("Control",treatment),]
+  metadata <- metadata[metadata$condition %in% contrast[c(3,2)],]
   
   # refactor conditions
   metadata$condition <- factor(as.character(metadata$condition),
-                               levels=c("Control",treatment))
+                               levels=contrast[c(3,2)])
   
   quant_files <- quant_files[rownames(metadata)]
   # get tx2gene
@@ -96,7 +104,8 @@ results_list <- lapply(treatments, function(treatment) {
     ggtitle("PCA") +
     geom_text_repel(aes(label=Name)) +
     theme_bw()
-  ggsave(paste0(out_dir, "pca_plot.", treatment, ".png"), width=6, height=5)
+  ggsave(paste0(out_dir, "pca_plot.", paste0(contrast[2], "-",
+                                             contrast[3]), ".png"), width=6, height=5)
   
   # try out sva
   
@@ -134,7 +143,8 @@ results_list <- lapply(treatments, function(treatment) {
     ggtitle("PCA, SVA applied") +
     geom_text_repel(aes(label=Name)) +
     theme_bw()
-  ggsave(paste0(out_dir, "pca_sva_plot.", treatment, ".png"), width=6, height=5)
+  ggsave(paste0(out_dir, "pca_sva_plot.", paste0(contrast[2], "-",
+                                                 contrast[3]), ".png"), width=6, height=5)
   
   # SVA seems to show a difference ...
   
@@ -156,8 +166,8 @@ results_list <- lapply(treatments, function(treatment) {
   
   ddsTxi <- DESeq(ddsTxi)
   
-  # create the contrasts
-  contrast <- c("condition",treatment,"Control")
+  # # create the contrasts
+  # contrast <- c("condition",treatment,"Control")
   
   print(paste0(contrast[2], "-",
                contrast[3]))
@@ -186,7 +196,7 @@ results_list <- lapply(treatments, function(treatment) {
   return(res)
   
 })
-names(results_list) <- paste0(treatments, "-Control")
+names(results_list) <- names(contrasts)
 
 # drop results with low counts
 results_list <- lapply(results_list, function(data) {
@@ -266,7 +276,7 @@ volcano_plot_list <-  lapply(names(results_list), function(contrast) {
 })
 
 
-plot_grid(plotlist = volcano_plot_list, nrow = 1)
+plot_grid(plotlist = volcano_plot_list, nrow = 2)
 ggsave(paste0(out_dir, "contrast.volcanoes.png"), width=10, height=5, bg="white")
 
 

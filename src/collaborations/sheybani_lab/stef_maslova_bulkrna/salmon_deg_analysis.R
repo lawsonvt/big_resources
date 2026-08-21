@@ -143,7 +143,10 @@ ddsTxi <- DESeq(ddsTxi)
 # create the contrasts
 contrasts <- list("FUS-Control"=c("condition","FUS","Control"),
                   "CAR-Control"=c("condition","CAR","Control"),
-                  "CAR_FUS-Control"=c("condition","CAR_FUS","Control"))
+                  "CAR_FUS-Control"=c("condition","CAR_FUS","Control"),
+                  "CAR_FUS-CAR"=c("condition","CAR_FUS","CAR"),
+                  "CAR_FUS-FUS"=c("condition","CAR_FUS","FUS"),
+                  "CAR-FUS"=c("condition","CAR","FUS"))
 
 results_list <- lapply(contrasts, function(contrast) {
   
@@ -251,8 +254,8 @@ volcano_plot_list <-  lapply(names(results_list), function(contrast) {
 })
 
 
-plot_grid(plotlist = volcano_plot_list, nrow = 1)
-ggsave(paste0(out_dir, "contrast.volcanoes.png"), width=10, height=5, bg="white")
+plot_grid(plotlist = volcano_plot_list, nrow = 2)
+ggsave(paste0(out_dir, "contrast.volcanoes.png"), width=10, height=8, bg="white")
 
 
 # look at some oddities
