@@ -57,7 +57,7 @@ for (result in merged_results) {
     geom_text_repel(data=result_top,
                     aes(label=gene_symbol),
                     size=3,
-                    max.overlaps = 50) +
+                    max.overlaps = 100) +
     scale_color_manual(values=c("grey","red","blue","purple")) +
     theme_bw() +
     labs(x="Log2FC in Total Analysis",
