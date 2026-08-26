@@ -11,6 +11,9 @@ library(tibble)
 library(reshape2)
 library(snakecase)
 library(cowplot)
+library(pbayes)
+library(dplyr)
+library(purrr)
 
 root_dir <- "~/Documents/projects/sheybanilab/stef_maslova/"
 
@@ -46,7 +49,7 @@ names(quant_files) <- sapply(quant_files, function(x) {
 all(names(quant_files) %in% rownames(metadata))
 all(rownames(metadata) %in% names(quant_files) )
 
-metadata <- metadata[names(quant_files),]
+metadata_total <- metadata[names(quant_files),]
 
 
 # loop through treatments, comparing each to control
@@ -65,18 +68,18 @@ contrasts <- list("FUS-Control"=c("condition","FUS","Control"),
 results_list <- lapply(contrasts, function(contrast) {
   
   # filter down
-  metadata <- metadata[metadata$condition %in% contrast[c(3,2)],]
+  metadata <- metadata_total[metadata_total$condition %in% contrast[c(3,2)],]
   
   # refactor conditions
   metadata$condition <- factor(as.character(metadata$condition),
                                levels=contrast[c(3,2)])
   
-  quant_files <- quant_files[rownames(metadata)]
+  subset_quant <- quant_files[rownames(metadata)]
   # get tx2gene
   tx2gene <- read.csv("~/Documents/projects/gaultierlab/sam_wachamo/bulkRNASeq/Mus_musculus.GRCm39.transcript2gene.csv")
   
   # read in quant files
-  txi <- tximport(quant_files, type="salmon", 
+  txi <- tximport(subset_quant, type="salmon", 
                   tx2gene = tx2gene[,c("transcript_id","gene_id")])
   
   # create DESeq object
@@ -179,6 +182,9 @@ results_list <- lapply(contrasts, function(contrast) {
   # remove NAs
   res <- res[!is.na(res$padj),]
   
+  # posterior probability
+  res$post_p <- pbayes(res$pvalue, n_cores=2, level_pvals = T)$posterior_prob
+  
   # merge in gene names
   res <- rownames_to_column(res, var = "gene_id")
   res <- merge(unique(tx2gene[,c("gene_id","gene_symbol")]),
@@ -277,6 +283,57 @@ volcano_plot_list <-  lapply(names(results_list), function(contrast) {
 
 
 plot_grid(plotlist = volcano_plot_list, nrow = 2)
-ggsave(paste0(out_dir, "contrast.volcanoes.png"), width=10, height=5, bg="white")
+ggsave(paste0(out_dir, "contrast.volcanoes.png"), width=10, height=8, bg="white")
+
+# identify trends
+
+# simplify the results
+results_list_simple <- lapply(results_list, function(x) {
+  
+  contrast <- unique(x$contrast)
+  
+  subset <- x[,c("gene_id","gene_symbol","log2FoldChange","pvalue","padj", "post_p")]
+  colnames(subset)[3:6] <- paste0(colnames(subset)[3:6], ".", to_snake_case(contrast))
+  
+  return(subset)
+})
+
+# merge em up
+
+total_df <- reduce(results_list_simple, inner_join, by=c("gene_id","gene_symbol"))
+
+max_fdr <- 0.1
+
+sum(total_df$padj.fus_control < max_fdr)
+sum(total_df$padj.car_control < max_fdr)
+sum(total_df$padj.car_fus_control < max_fdr)
+
+sum(total_df$padj.car_fus < max_fdr)
+sum(total_df$padj.car_fus_car < max_fdr)
+sum(total_df$padj.car_fus_fus < max_fdr)
+
+# identify combos
+sig_both_ind <- total_df[total_df$padj.car_control < max_fdr &
+                           total_df$padj.fus_control < max_fdr,]
+
+sig_car_fus_control <- total_df[total_df$padj.car_fus_control < max_fdr,]
+summary(sig_car_fus)
+
+
+
+# combo effects
+sig_fus <- total_df[total_df$padj.fus_control < max_fdr &
+                      total_df$padj.car_fus_fus < max_fdr,]
+
+
+sig_car <- total_df[total_df$padj.car_control < max_fdr &
+                      total_df$padj.car_fus_car < max_fdr,]
+
+
+sig_fus_car <- total_df[total_df$padj.fus_control < max_fdr &
+                          total_df$padj.car_fus < max_fdr,]
+
+sig_car_fus <- total_df[total_df$padj.car_control < max_fdr &
+                          total_df$padj.car_fus < max_fdr,]
 
 
