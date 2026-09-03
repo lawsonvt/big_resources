@@ -4,12 +4,12 @@ library(ggplot2)
 library(gtools)
 library(ggrepel)
 library(sva)
-library(reshape2)
+
 
 root_dir <- "~/Documents/projects/gaultierlab/stephanie_moy/"
 
-out_dir <- paste0(root_dir, "FF4RBC/results/salmon_deg_analysis/")
-dir.create(out_dir, showWarnings = F, recursive = T)
+out_dir <- paste0(root_dir, "FF4RBC/results/deseq2_workflow.no_sva/")
+dir.create(out_dir, showWarnings = F)
 
 exp_matrix <- read.delim(paste0(root_dir, "FF4RBC_results/FF4RBC-expression-matrix.tsv"))
 
@@ -49,7 +49,7 @@ metadata <- metadata[colnames(counts_mat),]
 # make DDS object
 dds <- DESeqDataSetFromMatrix(countData = counts_mat,
                               colData = metadata,
-                              design = ~sex+condition)
+                              design = ~condition)
 
 
 # pre filter counts data (for plotting purposes)
@@ -75,23 +75,13 @@ ggplot(pcaData, aes(x = PC1, y = PC2, color = condition, shape=sex)) +
   theme_bw()
 ggsave(paste0(out_dir, "pca_plot.png"), width=7, height=5)
 
-# Get normalized counts for SVA
-dds_norm <- estimateSizeFactors(dds)
-norm_counts <- counts(dds_norm, normalized = TRUE)
 
-
-mod <- model.matrix(~ sex + condition, colData(dds))
-mod0 <- model.matrix(~sex, colData(dds))
-
-# Calculate surrogate variables
-svobj <- svaseq(norm_counts, mod, mod0, n.sv=1)
-
-# PCA after correction
+# PCA after correction (sex batch removal)
 vsd_corrected <- vst(dds, blind = FALSE)
 assay(vsd_corrected) <- limma::removeBatchEffect(
   assay(vsd_corrected),
-  covariates = svobj$sv,
-  design = mod
+  batch = colData(dds)$sex,
+  design = model.matrix(~ condition, colData(dds))
 )
 
 pcaData_after <- plotPCA(vsd_corrected, intgroup = "condition", returnData = TRUE)
@@ -101,25 +91,12 @@ ggplot(pcaData_after, aes(x = PC1, y = PC2, color = condition, shape=sex)) +
   geom_point(size = 3) +
   xlab(paste0("PC1: ", percentVar_after[1], "% variance")) +
   ylab(paste0("PC2: ", percentVar_after[2], "% variance")) +
-  ggtitle("PCA - SVA applied") +
+  ggtitle("PCA - Sex batch removed") +
   geom_text_repel(aes(label=sample_id), color="black") +
   theme_bw()
-ggsave(paste0(out_dir, "pca_plot.sva.png"), width=7, height=5)
+ggsave(paste0(out_dir, "pca_plot.sex_batch_removed.png"), width=7, height=5)
 
-# Add SVs to colData
-for (i in 1:ncol(svobj$sv)) {
-  colData(dds)[, paste0("SV", i)] <- svobj$sv[, i]
-}
-
-# Create new design formula including SVs
-# Build the SV terms dynamically
-sv_terms <- paste0("SV", 1:ncol(svobj$sv), collapse = " + ")
-design_formula <- as.formula(paste("~ sex +", sv_terms, " + condition"))
-
-# Update the design
-design(dds) <- design_formula
-
-dds <- DESeq(dds)
+# determine DEGs
 
 res <- results(dds, contrast=c("condition","treatment","control"))
 
@@ -138,6 +115,7 @@ res <- res[order(res$pvalue),]
 write.xlsx(res, paste0(out_dir, "deg_results.xlsx"), colWidths="auto")
 
 saveRDS(res, paste0(out_dir, "deg_results.RDS"))
+
 
 # lets make a volcan0 plot!
 
@@ -170,66 +148,5 @@ ggplot(subset,
   theme_bw() +
   labs(x="Log2 Fold Change", y="-log10(P-Value)")
 ggsave(paste0(out_dir, "volcano_plot.png"), width=6, height=5)
-
-# spot checking genes
-
-vsd_counts <- assay(vsd)
-vsd_counts_corrected <- assay(vsd_corrected)
-
-vsd_counts_long <- melt(vsd_counts)
-colnames(vsd_counts_long) <- c("gene_id","sample_id","orig_value")
-
-vsd_counts_long$gene_id <- as.character(vsd_counts_long$gene_id)
-
-vsd_counts_corrected_long <- melt(vsd_counts_corrected)
-colnames(vsd_counts_corrected_long) <- c("gene_id","sample_id","sva_value")
-
-vsd_counts_corrected_long$gene_id <- as.character(vsd_counts_corrected_long$gene_id)
-
-# merge up counts
-vsd_counts_long <- merge(vsd_counts_long,
-                         vsd_counts_corrected_long,
-                         by=c("gene_id","sample_id"))
-
-vsd_counts_long <- merge(vsd_counts_long,
-                         metadata, by="sample_id")
-
-vsd_counts_long <- merge(vsd_counts_long,
-                         gene_xref,
-                         by="gene_id")
-
-# look at the top genes
-top_genes <- res[1:9,]
-
-ggplot(vsd_counts_long[vsd_counts_long$gene_id %in% top_genes$gene_id,],
-       aes(x=condition,
-           y=sva_value,
-           color=condition)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_point() +
-  theme_bw() +
-  geom_text_repel(aes(label=sample_id), size=3) +
-  facet_wrap(~ gene_name, ncol=3) +
-  labs(x=NULL, y="SVA Corrected VSD") +
-  guides(color="none")
-ggsave(paste0(out_dir, "top_degs.sva_corrected_vsd.png"), width=8, height=6)
-
-
-ggplot(vsd_counts_long[vsd_counts_long$gene_id %in% top_genes$gene_id,],
-       aes(x=condition,
-           y=orig_value,
-           color=condition)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_point() +
-  theme_bw() +
-  geom_text_repel(aes(label=sample_id), size=3) +
-  facet_wrap(~ gene_name, ncol=3)+
-  labs(x=NULL, y="VSD") +
-  guides(color="none")
-ggsave(paste0(out_dir, "top_degs.vsd.png"), width=8, height=6)
-
-
-
-
 
 
