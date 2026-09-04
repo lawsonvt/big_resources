@@ -158,6 +158,21 @@ ggplot(subset_meta,
   theme(axis.text.x = element_text(angle=90, hjust=1))
 ggsave(paste0(out_dir, "opc_cluster_counts.condition_bar_plot.png"), width=7, height=5)
 
+# export markers
+markers_list <- lapply(unique(all_markers$cluster), function(cluster) {
+  
+  data <- all_markers[all_markers$cluster == cluster,]
+  # reorder columns
+  data <- data[,c("gene", setdiff(colnames(data), "gene"))]
+  data$delta_pct <- data$pct.1 - data$pct.2
+  
+  return(data)
+})
+names(markers_list) <- unique(all_markers$cluster)
+
+write.xlsx(markers_list, file=paste0(out_dir, "cluster_markers.xlsx"), colWidths="auto")
+
+
 
 
 
