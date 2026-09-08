@@ -76,6 +76,7 @@ ggplot(metadata,
         axis.text.x = element_text(angle=90, hjust=1))
 ggsave(paste0(out_dir, "cell_category.bar_plot.png"), width=12, height=9)
 
-
+# save seurat object
+SaveSeuratRds(seu_obj, paste0(out_dir, "seurat.named.RDS"))
 
 
