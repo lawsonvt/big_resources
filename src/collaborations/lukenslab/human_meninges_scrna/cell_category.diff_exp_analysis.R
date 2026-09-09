@@ -12,7 +12,7 @@ library(gtools)
 
 root_dir <- "/Users/mjl3p/Documents/projects/lukenslab/ashley_bolte/human_meninges/"
 
-out_dir <- paste0(root_dir, "results/cell_names.diff_exp_analysis/")
+out_dir <- paste0(root_dir, "results/cell_category.diff_exp_analysis/")
 dir.create(out_dir, showWarnings = F)
 
 # read in nonimmune seurat
@@ -21,9 +21,13 @@ seu_obj <- LoadSeuratRds(paste0(root_dir,
 
 metadata <- seu_obj@meta.data
 
+# find clusters that combine more than one cell type
+cell_cats <- unique(metadata[,c("final_cell_name","cell_category")])
+
+dupe_cats <- unique(cell_cats[duplicated(cell_cats$cell_category),]$cell_category)
 
 # pull out cells
-cells <- unique(metadata$final_cell_name)
+cells <- dupe_cats
 
 # set assay to RNA and join layers
 DefaultAssay(seu_obj) <- "RNA"
@@ -37,7 +41,7 @@ seu_pseudo <- AggregateExpression(
   seu_obj,
   assays = "RNA",
   slot = "counts",
-  group.by = c("final_cell_name","Sample_name")
+  group.by = c("cell_category","Sample_name")
 )
 
 # Extract the count matrix
@@ -136,11 +140,11 @@ ggplot(sig_cell_results_df,
   geom_bar(color="black") +
   scale_fill_manual(values=c("dodgerblue","firebrick1")) +
   theme_bw() +
-  facet_wrap(~ cell, ncol=5, scales="free_y") +
+  facet_wrap(~ cell, ncol=3, scales="free_y") +
   theme(axis.text.x = element_text(angle=90, hjust=1),
         legend.position = "bottom") +
   labs(x=NULL, y="DEG Count at adjusted p-value < 0.05", fill=NULL)
-ggsave(paste0(out_dir, "deg_counts.bar_plots.png"), width=14, height=10)
+ggsave(paste0(out_dir, "deg_counts.bar_plots.png"), width=10, height=6)
 
 # output excel files
 for (cell in cells) {
@@ -206,8 +210,6 @@ for (cell_results in cell_results_list) {
 
 # output results
 saveRDS(cell_results_list, file=paste0(out_dir, "deg_results.RDS"))
-
-
 
 
 
