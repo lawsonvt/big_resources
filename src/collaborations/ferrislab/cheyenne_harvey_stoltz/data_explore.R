@@ -71,7 +71,9 @@ contrasts <- c("E4e1-E4c1",
                "E4e2-E4c2",
                "E3e1-E3c1",
                "E2e1-E2c1",
-               "KOe1-KOc1")
+               "KOe1-KOc1",
+               "E4e2-E4c1",
+               "E4c2-E4c1")
 
 results_list <- lapply(contrasts, function(contrast) {
   
