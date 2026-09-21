@@ -5,6 +5,7 @@ library(ComplexHeatmap)
 library(circlize)
 library(stringr)
 library(snakecase)
+library(mixOmics)
 
 root_dir <- "~/Documents/projects/ferrislab/cheyenne_harvey_stolz/"
 
@@ -73,7 +74,16 @@ contrasts <- c("E4e1-E4c1",
                "E2e1-E2c1",
                "KOe1-KOc1",
                "E4e2-E4c1",
-               "E4c2-E4c1")
+               "E4c2-E4c1",
+               "KOe1-E4e1",
+               "KOe1-E3e1",
+               "KOe1-E2e1",
+               "KOc1-E4c1",
+               "KOc1-E3c1",
+               "KOc1-E2c1",
+               "E3e1-E4e1",
+               "E2e1-E4e1",
+               "E3e1-E2e1")
 
 results_list <- lapply(contrasts, function(contrast) {
   
@@ -96,8 +106,8 @@ results_list <- lapply(contrasts, function(contrast) {
       return(NA)
     }
     
-    t.test(group1_n[i,],
-           group2_n[i,],
+    t.test(log2(group1_n[i,]),
+           log2(group2_n[i,]),
            alternative = "two.sided",
            var.equal = T)$p.value
     
