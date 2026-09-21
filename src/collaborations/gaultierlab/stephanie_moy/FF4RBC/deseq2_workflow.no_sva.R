@@ -116,6 +116,8 @@ write.xlsx(res, paste0(out_dir, "deg_results.xlsx"), colWidths="auto")
 
 saveRDS(res, paste0(out_dir, "deg_results.RDS"))
 
+# save DESeq2 object (for plotting)
+saveRDS(dds, paste0(out_dir, "dds.RDS"))
 
 # lets make a volcan0 plot!
 

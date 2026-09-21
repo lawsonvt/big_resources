@@ -37,6 +37,8 @@ total_gene_sets <- list(hallmark=list_convert(hallmark_gene_sets),
                         gobp=list_convert(gobp_gene_sets),
                         gomf=list_convert(gomf_gene_sets))
 
+saveRDS(total_gene_sets, file=paste0(out_dir, "msigdb_genesets.RDS"))
+
 # Read in data -----------------------------------------------------------------
 
 # can be changes in the future to account for multiple results
