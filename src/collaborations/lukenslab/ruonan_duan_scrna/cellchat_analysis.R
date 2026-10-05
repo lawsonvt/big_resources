@@ -14,6 +14,8 @@ root_dir <- "~/Documents/projects/lukenslab/ruonan_duan/"
 out_dir <- paste0(root_dir, "results/immune_cell_split/cellchat_analysis.immune/")
 dir.create(out_dir, showWarnings = F)
 
+# Read in and clean up data ----------------------------------------------------
+
 # read in integrated seurat
 seu_obj <- LoadSeuratRds(paste0(root_dir,
                                 "results/celltype_naming/all_samples.celltype_named.seurat.RDS"))
@@ -155,4 +157,105 @@ cellChat_list <- lapply(cellChat_list, function(cellChat) {
 })
 
 saveRDS(cellChat_list, file=paste0(out_dir, "cellchat_list.RDS"))
+
+# Individual plots -------------------------------------------------------------
+
+# overall interaction plots
+
+for (condition in names(cellChat_list)) {
+  
+  cellChat <- cellChat_list[[condition]]
+  
+  groupSize <- as.numeric(table(cellChat@idents))
+  
+  pdf(paste0(out_dir, condition, ".number_of_interactions.circle_plot.pdf"), width=8, height=7)
+  netVisual_circle(cellChat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, 
+                   title.name = "Number of interactions")
+  dev.off()
+  
+  pdf(paste0(out_dir, condition, ".weight_of_interactions.circle_plot.pdf"), width=8, height=7)
+  netVisual_circle(cellChat@net$weight, vertex.weight = groupSize, weight.scale = T, label.edge= F, 
+                   title.name = "Interaction weights/strength")
+  dev.off()
+  
+}
+
+# cell based plots
+
+for (condition in names(cellChat_list)) {
+  
+  cellChat <- cellChat_list[[condition]]
+  
+  groupSize <- as.numeric(table(cellChat@idents))
+  
+  cell_dir <- paste0(out_dir, condition, "_cell_plots/")
+  
+  dir.create(cell_dir, showWarnings = F)
+  
+  mat <- cellChat@net$weight
+  
+  for (i in 1:nrow(mat)) {
+    mat2 <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+    mat2[i, ] <- mat[i, ]
+    
+    cell <- rownames(mat)[i]
+    pdf(paste0(cell_dir, to_snake_case(cell), ".", condition, ".weight_of_interactions.circle_plot.pdf"), width=8, height=7)
+    netVisual_circle(mat2, vertex.weight = groupSize, weight.scale = T, 
+                     edge.weight.max = max(mat), title.name = rownames(mat)[i])
+    dev.off()
+  }
+  
+  
+}
+
+# pathway based plots
+
+# Infer the cell-cell communication at a signaling pathway level
+
+cellChat_list <- lapply(cellChat_list, function(cellChat) {
+  cellChat <- computeCommunProbPathway(cellChat)
+  netAnalysis_computeCentrality(cellChat, slot.name = "netP")
+})
+
+for (condition in names(cellChat_list)) {
+  
+  cellChat <- cellChat_list[[condition]]
+  
+  groupSize <- as.numeric(table(cellChat@idents))
+  
+  pathway_dir <- paste0(out_dir, condition, "_pathway_plots/")
+  
+  dir.create(pathway_dir, showWarnings = F)
+  
+  sig_pathways <- cellChat@netP$pathways
+  
+  for (pathway in sig_pathways) {
+    
+    pdf(paste0(pathway_dir, pathway, ".", condition, ".chord_plot.pdf"), width=8, height=7)
+    netVisual_aggregate(cellChat, signaling = pathway, 
+                        layout = "chord")
+    dev.off()
+    
+    pdf(paste0(pathway_dir, pathway, ".", condition, ".heatmap_plot.pdf"), width=8, height=7)
+    print(netVisual_heatmap(cellChat, signaling = pathway, 
+                            color.heatmap = 'Reds'))
+    dev.off()
+    
+    pdf(paste0(pathway_dir, pathway, ".", condition, ".signaling_heatmap_plot.pdf"), width=8, height=7)
+    print(netAnalysis_signalingRole_network(cellChat, 
+                                            signaling = pathway, 
+                                            width = 10, height = 4.5, font.size = 10))
+    dev.off()
+    
+  }
+  
+}
+
+
+saveRDS(cellChat_list, file=paste0(out_dir, "cellchat_list.RDS"))
+
+# Comparison analysis ----------------------------------------------------------
+
+
+
 
