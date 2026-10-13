@@ -38,7 +38,6 @@ nonimmune_metadata$cell_id <- rownames(nonimmune_metadata)
 
 # drop cell type (we gonna rename)
 immune_metadata$cell_type <- NULL
-immune_metadata$immune_clusters <- NULL
 
 nonimmune_metadata$cell_type <- NULL
 
@@ -61,7 +60,7 @@ immune_cluster_celltypes <- immune_cluster_celltypes[!grepl("Remove",immune_clus
 # merge into metadata
 immune_metadata <- merge(immune_metadata,
                          immune_cluster_celltypes,
-                         by.x="harmony_clusters",
+                         by.x="immune_clusters",
                          by.y="cluster")
 
 
@@ -72,6 +71,8 @@ opc_metadata <-  nonimmune_metadata[nonimmune_metadata$nonimmune_clusters %in% o
 
 opc_metadata$nonimmune_clusters <- NULL
 opc_metadata$celltype <- "OPC"
+
+immune_metadata$immune_clusters <- NULL
 
 # concat metadata
 total_metadata <- rbind(immune_metadata,
@@ -255,6 +256,235 @@ for (condition in names(cellChat_list)) {
 saveRDS(cellChat_list, file=paste0(out_dir, "cellchat_list.RDS"))
 
 # Comparison analysis ----------------------------------------------------------
+
+merged_cellChat <- mergeCellChat(cellChat_list, 
+                          add.names=names(cellChat_list))
+
+# compare the total number of interactions
+gg1 <- compareInteractions(merged_cellChat, show.legend = F, group = c(1,2))
+gg2 <- compareInteractions(merged_cellChat, show.legend = F, group = c(1,2), measure = "weight")
+
+gg1 + gg2
+ggsave(paste0(out_dir, "total_interaction_comparison.barplots.png"), width=8, height=5)
+
+
+groupSize <- as.numeric(table(cellChat_list$KO@idents)) +
+  as.numeric(table(cellChat_list$WT@idents))
+
+# where red (or blue) colored edges represent increased
+# (or decreased) signaling in the second dataset compared to the first one.
+pdf(paste0(out_dir, "total_comparison.number_of_interactions.circle_plot.pdf"), width=10, height=9)
+netVisual_diffInteraction(merged_cellChat, weight.scale = T, vertex.weight = groupSize)
+dev.off()
+
+pdf(paste0(out_dir, "total_comparison.weight_of_interactions.circle_plot.pdf"), width=10, height=9)
+netVisual_diffInteraction(merged_cellChat, weight.scale = T, measure = "weight", vertex.weight = groupSize)
+dev.off()
+
+cells <- unique(merged_cellChat@idents$joint)
+
+# create a folder for the cell plots
+cell_dir <- paste0(out_dir, "total_cell_plots/")
+
+dir.create(cell_dir, showWarnings = F)
+
+for (cell in cells) {
+  
+  pdf(paste0(cell_dir, to_snake_case(cell), "_comparison.weight_of_interactions.circle_plot.pdf"), width=7, height=5)
+  netVisual_diffInteraction(merged_cellChat, weight.scale = T, measure = "weight",
+                            sources.use = cell, vertex.weight = groupSize)
+  dev.off()
+  
+  # pdf(paste0(cell_dir, to_snake_case(cell), "_comparison.weight_of_interactions.circle_plot.no_labels.pdf"), width=7, height=5)
+  # netVisual_diffInteraction(cellChat, weight.scale = T, measure = "weight",
+  #                           sources.use = cell, vertex.weight = groupSize, vertex.label.cex = 0.000001)
+  # dev.off()
+  
+}
+
+gg1 <- netVisual_heatmap(merged_cellChat)
+#> Do heatmap based on a merged object
+gg2 <- netVisual_heatmap(merged_cellChat, measure = "weight")
+#> Do heatmap based on a merged object
+
+pdf(paste0(out_dir, "total_comparison_interactions.heatmap.pdf"), width=10, height=6)
+print(gg1 + gg2)
+dev.off()
+
+# Identify cell populations with significant changes in sending or receiving signals
+
+
+num.link <- sapply(cellChat_list, function(x) {rowSums(x@net$count) + colSums(x@net$count)-diag(x@net$count)})
+weight.MinMax <- c(min(num.link), max(num.link)) # control the dot size in the different datasets
+gg <- list()
+for (i in 1:length(cellChat_list)) {
+  gg[[i]] <- netAnalysis_signalingRole_scatter(cellChat_list[[i]], 
+                                               title = names(cellChat_list)[i], 
+                                               weight.MinMax = weight.MinMax)
+}
+patchwork::wrap_plots(plots = gg)
+ggsave(paste0(out_dir, "total_in_v_out.interaction_strength.scatter.png"), width=10, height=5)
+
+# determine differential signaling
+for (cell in cells) {
+  
+  netAnalysis_signalingChanges_scatter(merged_cellChat, idents.use = cell)
+  ggsave(paste0(cell_dir, to_snake_case(cell), ".pathway_signaling_changes.scatter.png"),
+         width=7, height=5)
+  
+  
+}
+
+# information flow 
+gg1 <- rankNet(merged_cellChat, mode = "comparison", measure = "weight", 
+               sources.use = NULL, targets.use = NULL, 
+               stacked = T, do.stat = TRUE) +
+  theme(legend.position = "bottom")
+gg2 <- rankNet(merged_cellChat, mode = "comparison", measure = "weight", 
+               sources.use = NULL, targets.use = NULL, 
+               stacked = F, do.stat = TRUE) +
+  theme(legend.position = "bottom")
+
+gg1 + gg2
+ggsave(paste0(out_dir, "pathway_information_flow_comp.png"), width=10, height=10)
+
+# determine top pathways
+
+pathway_data <- rankNet(merged_cellChat, mode = "comparison", measure = "weight", 
+                        sources.use = NULL, targets.use = NULL, 
+                        stacked = F, do.stat = TRUE, return.data = T)
+pathway_data <- pathway_data$signaling.contribution
+
+top_pathways <- unique(pathway_data[pathway_data$pvalues < 0.05 &
+                                      pathway_data$contribution.scaled > 3,]$name)
+
+top_pathway_data <- pathway_data[pathway_data$name %in% top_pathways,]
+
+
+# add in scaling data
+
+top_pathway_data$total <- 0
+
+for (top_pathway in top_pathways) {
+  
+  contribution_sum <- sum(top_pathway_data[top_pathway_data$name == top_pathway,]$contribution.scaled)
+  
+  top_pathway_data[top_pathway_data$name == top_pathway,]$total <- contribution_sum
+  
+}
+
+top_pathway_data$contribution_rel <- top_pathway_data$contribution.scaled / 
+  top_pathway_data$total
+top_pathway_data$contribution_rel_d <- top_pathway_data$contribution_rel
+top_pathway_data[top_pathway_data$group == "KO",]$contribution_rel_d <-
+  top_pathway_data[top_pathway_data$group == "KO",]$contribution_rel_d * -1
+
+top_pathway_data <- top_pathway_data[order(top_pathway_data$contribution_rel_d),]
+top_pathway_data$name <- factor(as.character(top_pathway_data$name),
+                                levels=unique(as.character(top_pathway_data$name)))
+
+ggplot(top_pathway_data,
+       aes(y=name,
+           x=contribution_rel,
+           fill=group)) +
+  geom_bar(stat="identity") +
+  theme_bw() +
+  labs(y=NULL, x="Relative Information Flow", fill=NULL) +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values=c("#b2182b","#2166ac"))
+ggsave(paste0(out_dir, "pathway_information_flow_comp.relative_filtered.png"), width=7, height=5)
+
+ggplot(top_pathway_data,
+       aes(y=name,
+           x=contribution.scaled,
+           fill=group)) +
+  geom_bar(position="dodge", stat="identity") +
+  theme_bw() +
+  labs(y=NULL, x="Information Flow", fill=NULL) +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values=c("#b2182b","#2166ac"))
+ggsave(paste0(out_dir, "pathway_information_flow_comp.filtered.png"), width=7, height=5)
+
+# more plots, trying to determine ligand pairs
+
+netVisual_bubble(merged_cellChat,
+                 sources.use = "OPC",
+                 comparison=c(1,2),
+                 color.text = c("#2166ac","#b2182b"),
+                 angle.x = 45)
+ggsave(paste0(out_dir, "opc.total_ligand_bubble_plot.png"), width=8, height=14)
+
+
+
+gg1 <- netVisual_bubble(merged_cellChat,
+                        sources.use = "OPC",
+                        targets.use = "B cell",
+                        comparison=c(1,2),
+                        angle.x = 45,
+                        max.dataset = 2,
+                        color.text = c("#2166ac","#b2182b"),
+                        title.name = "Increased signaling in KO",
+                        remove.isolate = T)
+
+gg2 <- netVisual_bubble(merged_cellChat,
+                        sources.use = "OPC",
+                        targets.use = "B cell",
+                        comparison=c(1,2),
+                        angle.x = 45,
+                        max.dataset = 1,
+                        color.text = c("#2166ac","#b2182b"),
+                        title.name = "Decreased signaling in KO",
+                        remove.isolate = T)
+
+gg1 + gg2
+ggsave(paste0(out_dir, "opc_to_bcell.ligand_bubble_plot.png"), width=8, height=6)
+
+
+gg1 <- netVisual_bubble(merged_cellChat,
+                        sources.use = "OPC",
+                        targets.use = "T cell",
+                        comparison=c(1,2),
+                        angle.x = 45,
+                        max.dataset = 2,
+                        color.text = c("#2166ac","#b2182b"),
+                        title.name = "Increased signaling in KO",
+                        remove.isolate = T)
+
+gg2 <- netVisual_bubble(merged_cellChat,
+                        sources.use = "OPC",
+                        targets.use = "T cell",
+                        comparison=c(1,2),
+                        angle.x = 45,
+                        max.dataset = 1,
+                        color.text = c("#2166ac","#b2182b"),
+                        title.name = "Decreased signaling in KO",
+                        remove.isolate = T)
+
+gg1 + gg2
+ggsave(paste0(out_dir, "opc_to_tcell.ligand_bubble_plot.png"), width=8, height=6)
+
+gg1 <- netVisual_bubble(merged_cellChat,
+                        sources.use = "OPC",
+                        targets.use = "Mast cell",
+                        comparison=c(1,2),
+                        angle.x = 45,
+                        max.dataset = 2,
+                        color.text = c("#2166ac","#b2182b"),
+                        title.name = "Increased signaling in KO",
+                        remove.isolate = T)
+
+gg2 <- netVisual_bubble(merged_cellChat,
+                        sources.use = "OPC",
+                        targets.use = "Mast cell",
+                        comparison=c(1,2),
+                        angle.x = 45,
+                        max.dataset = 1,
+                        color.text = c("#2166ac","#b2182b"),
+                        title.name = "Decreased signaling in KO",
+                        remove.isolate = T)
+
+gg1 + gg2
+ggsave(paste0(out_dir, "opc_to_mast_cell.ligand_bubble_plot.png"), width=8, height=6)
 
 
 
