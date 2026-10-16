@@ -1,0 +1,12 @@
+conda activate cite-seq
+
+CITE-seq-Count \
+  -R1 x1248-FB_S2_L001_R1_001.fastq.gz \
+  -R2 x1248-FB_S2_L001_R2_001.fastq.gz \
+  -t ../../tags_clean.csv \
+  -cbf 1 -cbl 16 \
+  -umif 17 -umil 28 \
+  -trim 10 \
+  -cells 10294 \
+  -wl ../../results/make_barcode_whitelist/whitelist.txt \
+  -o hto_counts
