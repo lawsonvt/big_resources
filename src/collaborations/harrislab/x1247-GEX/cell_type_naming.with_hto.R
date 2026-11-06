@@ -168,3 +168,5 @@ Idents(seu_obj) <- "cell_name"
 FeaturePlot(seu_obj, features = gene, split.by = "condition", alpha=1)
 ggsave(paste0(out_dir, "stat1_umap_overlay.condition.cell_name.png"), width=16, height=6)
   
+FeaturePlot(seu_obj, features = gene, alpha=1)
+ggsave(paste0(out_dir,  "stat1_umap_overlay.cell_name.png"), width=8, height=6)
