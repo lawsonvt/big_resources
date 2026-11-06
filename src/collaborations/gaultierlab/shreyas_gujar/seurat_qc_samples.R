@@ -4,7 +4,8 @@ library(scDblFinder)
 library(BiocParallel)
 library(dplyr)
 
-root_dir <- "~/Documents/projects/gaultierlab/shreyas_gujar/snRNASeq/"
+#root_dir <- "~/Documents/projects/gaultierlab/shreyas_gujar/snRNASeq/"
+root_dir <- "/home/mjl3p/projects/gaultierlab/shreyas_gujar/snRNASeq/"
 
 # test comment
 
