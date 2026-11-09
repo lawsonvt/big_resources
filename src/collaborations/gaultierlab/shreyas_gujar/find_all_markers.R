@@ -2,8 +2,8 @@ library(Seurat)
 library(openxlsx)
 library(ggplot2)
 
-root_dir <- "/Users/mjl3p/Documents/projects/gaultierlab/shreyas_gujar/snRNASeq/"
-#root_dir <- "/home/mjl3p/projects/gaultierlab/shreyas_gujar/snRNASeq/"
+#root_dir <- "/Users/mjl3p/Documents/projects/gaultierlab/shreyas_gujar/snRNASeq/"
+root_dir <- "/home/mjl3p/projects/gaultierlab/shreyas_gujar/snRNASeq/"
 
 
 out_dir <- paste0(root_dir, "results/find_all_markers/")
