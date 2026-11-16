@@ -90,7 +90,7 @@ samples <- lapply(samples, function(sample) {
   sample <- subset(sample, 
                    subset=nFeature_RNA > feature_min &
                      nFeature_RNA < feature_max &
-                     percent.mt < 5)
+                     percent.mt < percent_mt_max)
   
   VlnPlot(sample, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, alpha=0.4) 
   ggsave(paste0(plot_dir, sample_name, ".post_filter_count_plot.png"), width=8, height=6)
