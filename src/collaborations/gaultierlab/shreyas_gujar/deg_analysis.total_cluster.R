@@ -186,6 +186,7 @@ volcano_plot_list <-  lapply(names(de_results), function(cluster) {
 })
 
 plot_grid(plotlist = volcano_plot_list, ncol = 8)
+ggsave(paste0(out_dir, "total_volcanoes.png"), width=20, height=15)
 
 # inspect the results
 
